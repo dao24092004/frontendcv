@@ -1,0 +1,5 @@
+{
+  "name": "Dynamic Portfolio",
+  "description": "A dynamic portfolio application with a React frontend and Spring Boot backend integration, featuring a pastel design system, admin dashboard, and real-time chat.",
+  "requestFramePermissions": []
+}
