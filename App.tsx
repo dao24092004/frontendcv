@@ -2,6 +2,7 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Admin from './pages/Admin';
+import LanguageSwitcher from './components/LanguageSwitcher';
 
 const App: React.FC = () => {
   return (
