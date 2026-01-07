@@ -110,7 +110,7 @@ const VideoCallInterface: React.FC<VideoCallInterfaceProps> = ({
   };
 
   const connectSocket = () => {
-    const socket = new SockJS('http://localhost:8080/ws');
+const socket = new SockJS(import.meta.env.VITE_WS_URL);
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
