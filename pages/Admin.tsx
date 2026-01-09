@@ -2,17 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import {
-  FaUserCircle, FaVideo, FaPaperPlane, FaCode, FaUser, // <--- Đã thêm FaVideo vào đây
+  FaUserCircle, FaVideo, FaPaperPlane, FaCode, FaUser,
   FaImage, FaPlus, FaEdit, FaTrash, FaSave, FaTimes,
   FaTools, FaBriefcase, FaFileUpload, FaList, FaCheck,
-  FaGraduationCap, FaNewspaper, FaTrophy, FaGlobe, FaCloudUploadAlt, FaSpinner
+  FaGraduationCap, FaNewspaper, FaTrophy, FaGlobe, FaCloudUploadAlt, FaSpinner,
+  FaSitemap, FaBuilding, FaUsers, FaMapMarkerAlt, FaLink, FaCopy, FaExternalLinkAlt
 } from 'react-icons/fa';
 import VideoCallInterface from '../components/VideoCallInterface';
 import { portfolioService, adminService } from '../services/api';
-import { PortfolioData, Project, Skill, WorkExperience, ChatMessage } from '../types';
+import { PortfolioData, Project, Skill, WorkExperience, ChatMessage, Region, LocalOrg, Department } from '../types';
 
 interface ChatSession { visitorId: string; visitorName: string; messages: ChatMessage[]; unreadCount: number; lastActive: number; }
-type ActiveTab = 'chat' | 'profile' | 'projects' | 'skills' | 'experience' | 'education' | 'publications' | 'events' | 'cv-import' | 'profile-list';
+type ActiveTab = 'chat' | 'profile' | 'organization' | 'projects' | 'skills' | 'experience' | 'education' | 'publications' | 'events' | 'cv-import' | 'profile-list';
 
 const Admin: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('chat');
@@ -23,19 +24,37 @@ const Admin: React.FC = () => {
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
   const [profileList, setProfileList] = useState<any[]>([]);
 
-  // --- ADD FORMS ---
+  // --- STATE TỔ CHỨC (DATA) ---
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [locals, setLocals] = useState<LocalOrg[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+
+  // --- STATE TỔ CHỨC (SELECTION FOR ASSIGNMENT) ---
+  const [selRegionId, setSelRegionId] = useState<number | string>('');
+  const [selLocalId, setSelLocalId] = useState<number | string>('');
+  const [selDeptId, setSelDeptId] = useState<number | string>('');
+
+  // --- STATE TỔ CHỨC (CRUD MODALS) ---
+  const [showRegionModal, setShowRegionModal] = useState(false);
+  const [editingRegion, setEditingRegion] = useState<Partial<Region>>({});
+
+  const [showLocalModal, setShowLocalModal] = useState(false);
+  const [editingLocal, setEditingLocal] = useState<Partial<LocalOrg> & { regionId?: number }>({});
+
+  const [showDeptModal, setShowDeptModal] = useState(false);
+  const [editingDept, setEditingDept] = useState<Partial<Department> & { localOrgId?: number }>({});
+
+  // --- ADD FORMS (OTHER TABS) ---
   const [newSkill, setNewSkill] = useState<Partial<Skill>>({ name: '', category: 'Backend', proficiency: 50 });
   const [newExp, setNewExp] = useState<Partial<WorkExperience>>({ company: '', role: '', startDate: '', endDate: '', description: '', isCurrent: false });
   const [newEdu, setNewEdu] = useState<any>({ schoolName: '', degree: '', startDate: '', endDate: '', description: '' });
   const [newPub, setNewPub] = useState<any>({ title: '', publisher: '', releaseDate: '', url: '' });
   const [newEvent, setNewEvent] = useState<any>({ name: '', role: '', date: '', description: '', imageUrl: '' });
 
-  // --- EDIT MODALS ---
+  // --- EDIT MODALS (OTHER TABS) ---
   const [editingProfile, setEditingProfile] = useState<Partial<PortfolioData> | null>(null);
-
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [editingProject, setEditingProject] = useState<Partial<Project>>({ title: '', role: '', customer: '', description: '', technologies: [], imageUrl: '', repoUrl: '' });
-
   const [showExpModal, setShowExpModal] = useState(false);
   const [editingExp, setEditingExp] = useState<Partial<WorkExperience>>({});
   const [showSkillModal, setShowSkillModal] = useState(false);
@@ -63,6 +82,64 @@ const Admin: React.FC = () => {
     return () => { stompClient.current?.deactivate(); };
   }, []);
 
+  useEffect(() => {
+    if (activeTab === 'organization') fetchOrgData();
+  }, [activeTab]);
+
+  // ============================================================
+  // 🔥 AUTO-FILL DROPDOWN (CẬP NHẬT: TÌM THEO ID HOẶC TÊN) 🔥
+  // ============================================================
+  useEffect(() => {
+    // Chỉ chạy khi đã có dữ liệu các danh sách
+    if (portfolioData && regions.length > 0 && locals.length > 0 && departments.length > 0) {
+
+
+      let foundRegionId, foundLocalId, foundDeptId;
+
+      // CÁCH 1: Thử tìm theo ID (Ưu tiên)
+      if (portfolioData.departmentId) {
+        const d = departments.find(item => item.id === portfolioData.departmentId);
+        if (d) {
+          foundDeptId = d.id;
+          foundLocalId = d.localOrgId;
+          // Tìm region từ local
+          const l = locals.find(item => item.id === d.localOrgId);
+          if (l) foundRegionId = l.regionId;
+        }
+      }
+
+      // CÁCH 2: Nếu ID không có (hoặc sai), tìm theo TÊN (Fallback)
+      // (Vì trên màn hình đã hiện tên "Miền Bắc" nên cách này chắc chắn chạy)
+      if (!foundDeptId && portfolioData.regionName && portfolioData.localOrgName && portfolioData.departmentName) {
+
+        // 1. Tìm Vùng theo tên
+        const r = regions.find(item => item.name === portfolioData.regionName);
+        if (r) {
+          foundRegionId = r.id;
+
+          // 2. Tìm Chi nhánh theo tên và thuộc Vùng đó
+          const l = locals.find(item => item.name === portfolioData.localOrgName && item.regionId === r.id);
+          if (l) {
+            foundLocalId = l.id;
+
+            // 3. Tìm Phòng ban theo tên và thuộc Chi nhánh đó
+            const d = departments.find(item => item.name === portfolioData.departmentName && item.localOrgId === l.id);
+            if (d) foundDeptId = d.id;
+          }
+        }
+      }
+
+      // Áp dụng giá trị tìm được vào State
+      if (foundRegionId && foundLocalId && foundDeptId) {
+        setSelRegionId(foundRegionId);
+        setSelLocalId(foundLocalId);
+        setSelDeptId(foundDeptId);
+      } else {
+        console.warn("❌ Could not auto-fill. Data mismatch?");
+      }
+    }
+  }, [portfolioData, regions, locals, departments]);
+
   const fetchInitialData = async () => {
     try {
       setLoading(true);
@@ -72,11 +149,23 @@ const Admin: React.FC = () => {
       if (list.length > 0) {
         const currentId = portfolioData?.id || list[0].id;
         const data = await portfolioService.getPortfolioById(currentId);
-        console.log("Projects loaded:", data.projects);
         setPortfolioData(data);
         setEditingProfile(data);
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
+  };
+
+  const fetchOrgData = async () => {
+    try {
+      const [r, l, d] = await Promise.all([
+        adminService.getRegions(),
+        adminService.getLocals(),
+        adminService.getDepartments()
+      ]);
+      setRegions(r || []);
+      setLocals(l || []);
+      setDepartments(d || []);
+    } catch (e) { console.error("Error fetching org data:", e); }
   };
 
   const handleSwitchProfile = async (id: number) => {
@@ -86,11 +175,15 @@ const Admin: React.FC = () => {
       setPortfolioData(data);
       setEditingProfile(data);
       setActiveTab('profile');
+      // Reset dropdown khi switch user
+      setSelRegionId('');
+      setSelLocalId('');
+      setSelDeptId('');
     } catch (e) { alert("Failed to load profile details"); } finally { setLoading(false); }
   };
 
   const connectSocket = () => {
-const socket = new SockJS(import.meta.env.VITE_WS_URL);
+    const socket = new SockJS(import.meta.env.VITE_WS_URL);
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
@@ -107,7 +200,7 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
   };
 
   const handleIncomingMessage = (msg: ChatMessage) => {
-    const visitorId = msg.senderId;
+    const visitorId = msg.senderId || 'unknown';
     setChatSessions(prev => {
       const current = prev[visitorId] || { visitorId, visitorName: msg.sender, messages: [], unreadCount: 0, lastActive: Date.now() };
       return { ...prev, [visitorId]: { ...current, messages: [...current.messages, msg], unreadCount: (selectedVisitorId === visitorId && activeTab === 'chat') ? 0 : current.unreadCount + 1 } };
@@ -169,109 +262,138 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
     }
   };
 
-  // --- LOGIC PROJECTS ---
-  const openAddProject = () => {
-    setEditingProject({ title: '', role: '', customer: '', description: '', technologies: [], imageUrl: '', repoUrl: '' });
-    setShowProjectModal(true);
+  // ==========================================
+  // LOGIC ORGANIZATION (SỬA LỖI FLAT DATA & THÊM CODE)
+  // ==========================================
+
+  // 1. Gán User vào Tổ chức
+  const handleAssignOrg = async () => {
+    if (!portfolioData?.id || !selDeptId) { alert("Vui lòng chọn phòng ban!"); return; }
+    try {
+      await adminService.assignUserToOrg(portfolioData.id, Number(selDeptId));
+      alert("✅ Đã gán tổ chức thành công!");
+      fetchInitialData();
+    } catch (e) { alert("Lỗi khi gán tổ chức"); }
   };
 
-  const openEditProject = (project: Project) => {
-    console.log("Editing Project:", project);
-    if (!project.id) alert("Cảnh báo: Dự án này không có ID, khi lưu sẽ bị tạo mới!");
-    setEditingProject({ ...project });
-    setShowProjectModal(true);
+  // 2. CRUD Region
+  const openAddRegion = () => { setEditingRegion({ name: '', code: '' }); setShowRegionModal(true); };
+  const openEditRegion = (r: Region) => { setEditingRegion({ ...r }); setShowRegionModal(true); };
+  const saveRegion = async () => {
+    try {
+      if (editingRegion.id) await adminService.updateRegion(editingRegion.id, editingRegion as any);
+      else await adminService.createRegion(editingRegion as any);
+      setShowRegionModal(false); fetchOrgData();
+    } catch (e) { alert("Lỗi lưu Vùng"); }
+  };
+  const deleteRegion = async (id: number) => { if (confirm("Xóa vùng này?")) { await adminService.deleteRegion(id); fetchOrgData(); } };
+
+  // 3. CRUD Local Org
+  const openAddLocal = () => { setEditingLocal({ name: '', code: '', regionId: regions[0]?.id }); setShowLocalModal(true); };
+  const openEditLocal = (l: LocalOrg) => {
+    // Map đúng regionId từ dữ liệu phẳng
+    setEditingLocal({ ...l, regionId: l.regionId });
+    setShowLocalModal(true);
+  };
+  const saveLocal = async () => {
+    try {
+      if (editingLocal.id) await adminService.updateLocal(editingLocal.id, editingLocal as any);
+      else await adminService.createLocal(editingLocal as any);
+      setShowLocalModal(false); fetchOrgData();
+    } catch (e) { alert("Lỗi lưu Chi nhánh"); }
+  };
+  const deleteLocal = async (id: number) => { if (confirm("Xóa chi nhánh này?")) { await adminService.deleteLocal(id); fetchOrgData(); } };
+
+  // 4. CRUD Department
+  const openAddDept = () => { setEditingDept({ name: '', code: '', localOrgId: locals[0]?.id }); setShowDeptModal(true); };
+  const openEditDept = (d: Department) => {
+    // Map đúng localOrgId từ dữ liệu phẳng
+    setEditingDept({ ...d, localOrgId: d.localOrgId });
+    setShowDeptModal(true);
+  };
+  const saveDept = async () => {
+    try {
+      if (editingDept.id) await adminService.updateDepartment(editingDept.id, editingDept as any);
+      else await adminService.createDepartment(editingDept as any);
+      setShowDeptModal(false); fetchOrgData();
+    } catch (e) { alert("Lỗi lưu Phòng ban"); }
+  };
+  const deleteDept = async (id: number) => { if (confirm("Xóa phòng ban này?")) { await adminService.deleteDepartment(id); fetchOrgData(); } };
+
+  // --- LOGIC SINH LINK CHIA SẺ (MỚI THÊM) ---
+  const generateShareLink = () => {
+    if (!portfolioData?.id || !selRegionId || !selLocalId || !selDeptId) return null;
+
+    // 1. Tìm Object từ ID đang chọn
+    const r = regions.find(item => item.id === Number(selRegionId));
+    const l = locals.find(item => item.id === Number(selLocalId));
+    const d = departments.find(item => item.id === Number(selDeptId));
+
+    // 2. Kiểm tra xem có đủ Code không
+    if (r?.code && l?.code && d?.code) {
+      // Lấy domain hiện tại (VD: http://localhost:5173)
+      const origin = window.location.origin;
+      // Ghép chuỗi (Lưu ý: Dùng /#/ nếu dùng HashRouter, nếu BrowserRouter thì bỏ #)
+      return `${origin}/#/view/${r.code}/${l.code}/${d.code}/${portfolioData.id}`;
+    }
+    return null;
   };
 
+  const generatedLink = generateShareLink();
+
+  const copyLink = () => {
+    if (generatedLink) {
+      navigator.clipboard.writeText(generatedLink);
+      alert("Đã copy link vào bộ nhớ tạm!");
+    }
+  };
+
+
+  // --- LOGIC PROJECTS, SKILLS, ETC ---
+  const openAddProject = () => { setEditingProject({ title: '', role: '', customer: '', description: '', technologies: [], imageUrl: '', repoUrl: '' }); setShowProjectModal(true); };
+  const openEditProject = (project: Project) => { setEditingProject({ ...project }); setShowProjectModal(true); };
   const saveProject = async () => {
     if (portfolioData?.id) {
       try {
-        if (editingProject.id) {
-          await adminService.updateProject(editingProject as Project, portfolioData.id);
-          alert("✅ Cập nhật thành công!");
-        } else {
-          await adminService.createProject(editingProject as Project, portfolioData.id);
-          alert("✅ Thêm mới thành công!");
-        }
-        setShowProjectModal(false);
-        fetchInitialData();
-      } catch (e) {
-        console.error(e);
-        alert("Lỗi khi lưu dự án");
-      }
-    } else {
-      alert("Lỗi: Không tìm thấy Profile ID");
+        if (editingProject.id) await adminService.updateProject(editingProject as Project, portfolioData.id);
+        else await adminService.createProject(editingProject as Project, portfolioData.id);
+        setShowProjectModal(false); fetchInitialData();
+      } catch (e) { alert("Error saving project"); }
     }
   };
+  const deleteProject = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteProject(id); fetchInitialData(); } };
 
-  const deleteProject = async (id: number) => {
-    if (confirm("Bạn có chắc chắn muốn xóa dự án này?")) {
-      await adminService.deleteProject(id);
-      fetchInitialData();
-    }
-  };
-
-  // --- LOGIC EXPERIENCE ---
   const openAddExperience = () => { setEditingExp({ company: '', role: '', startDate: '', endDate: '', description: '', isCurrent: false }); setShowExpModal(true); };
   const openEditExperience = (exp: WorkExperience) => { setEditingExp({ ...exp }); setShowExpModal(true); };
-  const saveExperience = async () => {
-    if (portfolioData?.id) {
-      if (editingExp.id) await adminService.updateExperience(editingExp as WorkExperience, portfolioData.id);
-      else await adminService.addExperience(editingExp as WorkExperience, portfolioData.id);
-      setShowExpModal(false); fetchInitialData();
-    }
-  };
+  const saveExperience = async () => { if (portfolioData?.id) { if (editingExp.id) await adminService.updateExperience(editingExp as WorkExperience, portfolioData.id); else await adminService.addExperience(editingExp as WorkExperience, portfolioData.id); setShowExpModal(false); fetchInitialData(); } };
   const deleteExperience = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteExperience(id); fetchInitialData(); } };
 
-  // --- LOGIC SKILL ---
   const openAddSkill = () => { setEditingSkill({ name: '', category: 'Backend', proficiency: 50 }); setShowSkillModal(true); };
   const openEditSkill = (skill: Skill) => { setEditingSkill({ ...skill }); setShowSkillModal(true); };
-  const saveSkill = async () => {
-    if (portfolioData?.id) {
-      if (editingSkill.id) await adminService.updateSkill(editingSkill as Skill, portfolioData.id);
-      else await adminService.addSkill(editingSkill as Skill, portfolioData.id);
-      setShowSkillModal(false); fetchInitialData();
-    }
-  };
+  const saveSkill = async () => { if (portfolioData?.id) { if (editingSkill.id) await adminService.updateSkill(editingSkill as Skill, portfolioData.id); else await adminService.addSkill(editingSkill as Skill, portfolioData.id); setShowSkillModal(false); fetchInitialData(); } };
   const deleteSkill = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteSkill(id); fetchInitialData(); } };
 
-  // --- LOGIC EDUCATION ---
   const openAddEducation = () => { setEditingEdu({ schoolName: '', degree: '', startDate: '', endDate: '', description: '' }); setShowEduModal(true); };
   const openEditEducation = (edu: any) => { setEditingEdu({ ...edu }); setShowEduModal(true); };
-  const saveEducation = async () => {
-    if (portfolioData?.id) {
-      if (editingEdu.id) await adminService.updateEducation(editingEdu, portfolioData.id);
-      else await adminService.addEducation(editingEdu, portfolioData.id);
-      setShowEduModal(false); fetchInitialData();
-    }
-  };
+  const saveEducation = async () => { if (portfolioData?.id) { if (editingEdu.id) await adminService.updateEducation(editingEdu, portfolioData.id); else await adminService.addEducation(editingEdu, portfolioData.id); setShowEduModal(false); fetchInitialData(); } };
   const deleteEducation = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteEducation(id); fetchInitialData(); } };
 
-  // --- LOGIC PUBLICATION ---
   const openAddPub = () => { setEditingPub({ title: '', publisher: '', releaseDate: '', url: '' }); setShowPubModal(true); };
   const openEditPub = (pub: any) => { setEditingPub({ ...pub }); setShowPubModal(true); };
-  const savePub = async () => {
-    if (portfolioData?.id) {
-      if (editingPub.id) await adminService.updatePublication(editingPub, portfolioData.id);
-      else await adminService.addPublication(editingPub, portfolioData.id);
-      setShowPubModal(false); fetchInitialData();
-    }
-  };
+  const savePub = async () => { if (portfolioData?.id) { if (editingPub.id) await adminService.updatePublication(editingPub, portfolioData.id); else await adminService.addPublication(editingPub, portfolioData.id); setShowPubModal(false); fetchInitialData(); } };
   const deletePub = async (id: number) => { if (confirm("Delete?")) { await adminService.deletePublication(id); fetchInitialData(); } };
 
-  // --- LOGIC EVENT ---
   const openAddEvent = () => { setEditingEvent({ name: '', role: '', date: '', description: '', imageUrl: '' }); setShowEventModal(true); };
   const openEditEvent = (evt: any) => { setEditingEvent({ ...evt }); setShowEventModal(true); };
-  const saveEvent = async () => {
-    if (portfolioData?.id) {
-      if (editingEvent.id) await adminService.updateEvent(editingEvent, portfolioData.id);
-      else await adminService.addEvent(editingEvent, portfolioData.id);
-      setShowEventModal(false); fetchInitialData();
-    }
-  };
+  const saveEvent = async () => { if (portfolioData?.id) { if (editingEvent.id) await adminService.updateEvent(editingEvent, portfolioData.id); else await adminService.addEvent(editingEvent, portfolioData.id); setShowEventModal(false); fetchInitialData(); } };
   const deleteEvent = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteEvent(id); fetchInitialData(); } };
 
 
   if (loading) return <div className="h-screen flex items-center justify-center text-xl font-bold text-orange-600">Loading System...</div>;
+
+  // Filter Logic cho Assignment (Dùng ID phẳng)
+  const filteredLocalsForAssign = (locals || []).filter(l => l.regionId === Number(selRegionId));
+  const filteredDepartmentsForAssign = (departments || []).filter(d => d.localOrgId === Number(selLocalId));
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans text-gray-800">
@@ -287,16 +409,18 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
           <div className="text-xs text-green-500">ID: {portfolioData?.id}</div>
         </div>
         <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-          {['chat', 'profile', 'projects', 'skills', 'experience', 'education', 'publications', 'events', 'cv-import', 'profile-list'].map((tab) => (
+          {['chat', 'profile', 'organization', 'projects', 'skills', 'experience', 'education', 'publications', 'events', 'cv-import', 'profile-list'].map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab as ActiveTab)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg capitalize transition ${activeTab === tab ? 'bg-orange-50 text-orange-600 font-bold' : 'hover:bg-gray-100 text-gray-600'}`}>
-              <FaList className="text-sm" /> <span className="hidden md:block">{tab.replace('-', ' ')}</span>
+              {tab === 'organization' ? <FaSitemap className="text-sm" /> : <FaList className="text-sm" />}
+              <span className="hidden md:block">{tab.replace('-', ' ')}</span>
             </button>
           ))}
         </nav>
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* ... CHAT TAB ... */}
         {activeTab === 'chat' && (
           <div className="flex h-full">
             <div className="w-80 bg-white border-r flex flex-col">
@@ -329,6 +453,7 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
           </div>
         )}
 
+        {/* ... PROFILE TAB ... */}
         {activeTab === 'profile' && editingProfile && (
           <div className="p-8 overflow-y-auto h-full">
             <h2 className="text-2xl font-bold mb-6">General Information</h2>
@@ -358,7 +483,166 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
           </div>
         )}
 
-        {/* PROJECTS TAB */}
+        {/* ============================================================ */}
+        {/* TAB ORGANIZATION - FIX: DÙNG FLAT DATA & HIỂN THỊ CODE */}
+        {/* ============================================================ */}
+        {activeTab === 'organization' && portfolioData && (
+          <div className="p-8 overflow-y-auto h-full">
+
+            {/* PART 1: ASSIGN USER */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border mb-8 max-w-4xl">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-lg flex items-center gap-2"><FaUser /> Assign Current User</h3>
+                <span className="text-sm bg-gray-100 px-3 py-1 rounded text-gray-500">
+                  Current:
+                  <span className="font-bold text-gray-700 ml-1">{portfolioData.regionName || 'N/A'}</span> &gt;
+                  <span className="font-bold text-gray-700 ml-1">{portfolioData.localOrgName || 'N/A'}</span> &gt;
+                  <span className="font-bold text-orange-600 ml-1">{portfolioData.departmentName || 'N/A'}</span>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                {/* 1. Region */}
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">1. Region</label>
+                  <select className="w-full border p-3 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 outline-none" value={selRegionId} onChange={(e) => { setSelRegionId(e.target.value); setSelLocalId(''); setSelDeptId(''); }}>
+                    <option value="">-- Select Region --</option>
+                    {(regions || []).map(r => <option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}
+                  </select>
+                </div>
+
+                {/* 2. Local */}
+                <div>
+                  <label className={`block text-xs font-bold uppercase mb-2 ${!selRegionId ? 'text-gray-300' : 'text-gray-400'}`}>2. Local Org</label>
+                  <select className="w-full border p-3 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 outline-none disabled:bg-gray-100" value={selLocalId} onChange={(e) => { setSelLocalId(e.target.value); setSelDeptId(''); }} disabled={!selRegionId}>
+                    <option value="">-- Select Local --</option>
+                    {filteredLocalsForAssign.map(l => <option key={l.id} value={l.id}>{l.name} ({l.code})</option>)}
+                  </select>
+                </div>
+
+                {/* 3. Department */}
+                <div>
+                  <label className={`block text-xs font-bold uppercase mb-2 ${!selLocalId ? 'text-gray-300' : 'text-gray-400'}`}>3. Department</label>
+                  <select className="w-full border p-3 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 outline-none disabled:bg-gray-100" value={selDeptId} onChange={(e) => setSelDeptId(e.target.value)} disabled={!selLocalId}>
+                    <option value="">-- Select Dept --</option>
+                    {filteredDepartmentsForAssign.map(d => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* ACTION AREA */}
+              <div className="flex flex-col md:flex-row justify-between items-center border-t pt-6 gap-4">
+
+                {/* HIỂN THỊ LINK ĐỘNG */}
+                <div className="flex-1 w-full">
+                  {generatedLink ? (
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 p-3 rounded-lg w-full">
+                      <FaLink className="text-blue-500" />
+                      <input
+                        readOnly
+                        value={generatedLink}
+                        className="bg-transparent text-sm text-blue-800 flex-1 outline-none font-mono"
+                        onClick={(e) => e.currentTarget.select()}
+                      />
+                      <button onClick={copyLink} className="text-blue-600 hover:text-blue-800 px-2" title="Copy"><FaCopy /></button>
+                      <a href={generatedLink} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 px-2" title="Open"><FaExternalLinkAlt /></a>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-400 italic flex items-center gap-2">
+                      <FaLink /> Select all fields to generate shareable link...
+                    </div>
+                  )}
+                </div>
+
+                {/* NÚT SAVE */}
+                <button
+                  onClick={handleAssignOrg}
+                  disabled={!selDeptId}
+                  className={`px-8 py-3 rounded-lg font-bold text-white shadow-lg transition flex items-center gap-2 whitespace-nowrap
+                    ${selDeptId ? 'bg-orange-500 hover:bg-orange-600 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
+                >
+                  <FaCheck /> Confirm Assignment
+                </button>
+              </div>
+            </div>
+
+            <hr className="my-8 border-gray-200" />
+
+            {/* PART 2: MANAGE MASTER DATA */}
+            <h2 className="text-2xl font-bold mb-6">Manage Organization Data</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+              {/* COL 1: REGIONS */}
+              <div className="bg-white p-4 rounded-xl shadow-sm border h-fit">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                  <h4 className="font-bold flex items-center gap-2"><FaGlobe className="text-blue-500" /> Regions</h4>
+                  <button onClick={openAddRegion} className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600"><FaPlus /> Add</button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {(regions || []).map(r => (
+                    <div key={r.id} className="flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100 group">
+                      <div>
+                        <div className="font-bold text-sm">{r.name}</div>
+                        <div className="text-xs text-orange-500 font-mono">[{r.code}]</div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <button onClick={() => openEditRegion(r)} className="text-blue-500 p-1"><FaEdit /></button>
+                        <button onClick={() => deleteRegion(r.id)} className="text-red-500 p-1"><FaTrash /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* COL 2: LOCALS */}
+              <div className="bg-white p-4 rounded-xl shadow-sm border h-fit">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                  <h4 className="font-bold flex items-center gap-2"><FaBuilding className="text-orange-500" /> Local Orgs</h4>
+                  <button onClick={openAddLocal} className="text-xs bg-orange-500 text-white px-2 py-1 rounded hover:bg-orange-600"><FaPlus /> Add</button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {(locals || []).map(l => (
+                    <div key={l.id} className="flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100 group">
+                      <div>
+                        <div className="font-bold text-sm">{l.name} <span className="text-xs text-orange-500 font-mono">[{l.code}]</span></div>
+                        <div className="text-xs text-gray-400">{l.regionName}</div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <button onClick={() => openEditLocal(l)} className="text-blue-500 p-1"><FaEdit /></button>
+                        <button onClick={() => deleteLocal(l.id)} className="text-red-500 p-1"><FaTrash /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* COL 3: DEPARTMENTS */}
+              <div className="bg-white p-4 rounded-xl shadow-sm border h-fit">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                  <h4 className="font-bold flex items-center gap-2"><FaUsers className="text-purple-500" /> Departments</h4>
+                  <button onClick={openAddDept} className="text-xs bg-purple-500 text-white px-2 py-1 rounded hover:bg-purple-600"><FaPlus /> Add</button>
+                </div>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {(departments || []).map(d => (
+                    <div key={d.id} className="flex justify-between items-center p-2 bg-gray-50 rounded hover:bg-gray-100 group">
+                      <div>
+                        <div className="font-bold text-sm">{d.name} <span className="text-xs text-orange-500 font-mono">[{d.code}]</span></div>
+                        <div className="text-xs text-gray-400">{d.localOrgName}</div>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                        <button onClick={() => openEditDept(d)} className="text-blue-500 p-1"><FaEdit /></button>
+                        <button onClick={() => deleteDept(d.id)} className="text-red-500 p-1"><FaTrash /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* ... CÁC TAB KHÁC GIỮ NGUYÊN (PROJECTS, SKILLS...) ... */}
         {activeTab === 'projects' && (
           <div className="p-8 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">Projects</h2><button onClick={openAddProject} className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"><FaPlus className="inline mr-2" /> Add Project</button></div>
@@ -377,7 +661,6 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
           </div>
         )}
 
-        {/* SKILLS TAB */}
         {activeTab === 'skills' && (
           <div className="p-8 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">Skills</h2><button onClick={openAddSkill} className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"><FaPlus className="inline mr-2" /> Add Skill</button></div>
@@ -396,101 +679,43 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
           </div>
         )}
 
-        {/* EXPERIENCE TAB */}
+        {/* ... EXPERIENCE, EDUCATION, PUB, EVENT, IMPORT, LIST TABS ... */}
         {activeTab === 'experience' && (
           <div className="p-8 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">Experience</h2><button onClick={openAddExperience} className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"><FaPlus className="inline mr-2" /> Add Experience</button></div>
-            <div className="space-y-4">
-              {portfolioData?.workHistory.map((w, idx) => (
-                <div key={w.id || idx} className="bg-white p-4 rounded border shadow-sm relative group hover:border-orange-200 transition">
-                  <h4 className="font-bold text-lg">{w.company}</h4>
-                  <div className="text-blue-600 font-medium">{w.role}</div>
-                  <div className="text-xs text-gray-500">{w.startDate} - {w.isCurrent ? "Present" : w.endDate}</div>
-                  <p className="text-sm mt-2 text-gray-600 whitespace-pre-wrap">{w.description}</p>
-                  <div className="absolute top-4 right-4 flex gap-2">
-                    <button onClick={(e) => { e.stopPropagation(); openEditExperience(w) }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full shadow"><FaEdit /></button>
-                    <button onClick={(e) => { e.stopPropagation(); w.id && deleteExperience(w.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full shadow"><FaTrash /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="space-y-4">{portfolioData?.workHistory.map((w, idx) => (<div key={w.id || idx} className="bg-white p-4 rounded border shadow-sm relative group hover:border-orange-200 transition"><h4 className="font-bold text-lg">{w.company}</h4><div className="text-blue-600 font-medium">{w.role}</div><div className="text-xs text-gray-500">{w.startDate} - {w.isCurrent ? "Present" : w.endDate}</div><p className="text-sm mt-2 text-gray-600 whitespace-pre-wrap">{w.description}</p><div className="absolute top-4 right-4 flex gap-2"><button onClick={(e) => { e.stopPropagation(); openEditExperience(w) }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full shadow"><FaEdit /></button><button onClick={(e) => { e.stopPropagation(); w.id && deleteExperience(w.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full shadow"><FaTrash /></button></div></div>))}</div>
           </div>
         )}
 
-        {/* EDUCATION TAB */}
         {activeTab === 'education' && (
           <div className="p-8 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">Education</h2><button onClick={openAddEducation} className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"><FaPlus className="inline mr-2" /> Add Education</button></div>
-            <div className="space-y-4">
-              {portfolioData?.education.map((e, idx) => (
-                <div key={e.id || idx} className="bg-white p-4 rounded border flex justify-between items-center group relative hover:border-orange-200">
-                  <div><h4 className="font-bold">{e.school}</h4><p className="text-sm">{e.degree} <span className="text-gray-400">({e.year})</span></p><p className="text-xs text-gray-500 mt-1">{e.description}</p></div>
-                  <div className="flex gap-2">
-                    <button onClick={(event) => { event.stopPropagation(); openEditEducation(e); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full"><FaEdit /></button>
-                    <button onClick={(event) => { event.stopPropagation(); e.id && deleteEducation(e.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><FaTrash /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="space-y-4">{portfolioData?.education.map((e, idx) => (<div key={e.id || idx} className="bg-white p-4 rounded border flex justify-between items-center group relative hover:border-orange-200"><div><h4 className="font-bold">{e.school}</h4><p className="text-sm">{e.degree} <span className="text-gray-400">({e.year})</span></p><p className="text-xs text-gray-500 mt-1">{e.description}</p></div><div className="flex gap-2"><button onClick={(event) => { event.stopPropagation(); openEditEducation(e); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full"><FaEdit /></button><button onClick={(event) => { event.stopPropagation(); e.id && deleteEducation(e.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><FaTrash /></button></div></div>))}</div>
           </div>
         )}
 
-        {/* PUBLICATIONS TAB */}
         {activeTab === 'publications' && (
           <div className="p-8 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">Publications</h2><button onClick={openAddPub} className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"><FaPlus className="inline mr-2" /> Add Publication</button></div>
-            <div className="space-y-4">
-              {portfolioData?.publications?.map((p: any, idx) => (
-                <div key={p.id || idx} className="bg-white p-4 rounded border flex justify-between items-center group hover:border-orange-200">
-                  <div><h4 className="font-bold">{p.title}</h4><p className="text-sm text-gray-600">{p.publisher} • {p.releaseDate}</p><a href={p.url} target="_blank" className="text-blue-500 text-xs hover:underline">{p.url}</a></div>
-                  <div className="flex gap-2">
-                    <button onClick={(e) => { e.stopPropagation(); openEditPub(p); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full"><FaEdit /></button>
-                    <button onClick={(e) => { e.stopPropagation(); p.id && deletePublication(p.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><FaTrash /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="space-y-4">{portfolioData?.publications?.map((p: any, idx) => (<div key={p.id || idx} className="bg-white p-4 rounded border flex justify-between items-center group hover:border-orange-200"><div><h4 className="font-bold">{p.title}</h4><p className="text-sm text-gray-600">{p.publisher} • {p.releaseDate}</p><a href={p.url} target="_blank" className="text-blue-500 text-xs hover:underline">{p.url}</a></div><div className="flex gap-2"><button onClick={(e) => { e.stopPropagation(); openEditPub(p); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full"><FaEdit /></button><button onClick={(e) => { e.stopPropagation(); p.id && deletePublication(p.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><FaTrash /></button></div></div>))}</div>
           </div>
         )}
 
-        {/* EVENTS TAB */}
         {activeTab === 'events' && (
           <div className="p-8 overflow-y-auto h-full">
             <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold">Events</h2><button onClick={openAddEvent} className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"><FaPlus className="inline mr-2" /> Add Event</button></div>
-            <div className="space-y-4">
-              {portfolioData?.events?.map((e: any, idx) => (
-                <div key={e.id || idx} className="bg-white p-4 rounded border flex justify-between items-center group hover:border-orange-200">
-                  <div className="flex items-center gap-3">
-                    {e.imageUrl && <img src={e.imageUrl} className="w-10 h-10 rounded object-cover" />}
-                    <div><h4 className="font-bold">{e.name} <span className="text-xs bg-gray-100 px-2 rounded font-normal">{e.role}</span></h4><p className="text-xs text-gray-500">{e.date}</p><p className="text-sm mt-1">{e.description}</p></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={(event) => { event.stopPropagation(); openEditEvent(e); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full"><FaEdit /></button>
-                    <button onClick={(event) => { event.stopPropagation(); e.id && deleteEvent(e.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><FaTrash /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="space-y-4">{portfolioData?.events?.map((e: any, idx) => (<div key={e.id || idx} className="bg-white p-4 rounded border flex justify-between items-center group hover:border-orange-200"><div className="flex items-center gap-3">{e.imageUrl && <img src={e.imageUrl} className="w-10 h-10 rounded object-cover" />}<div><h4 className="font-bold">{e.name} <span className="text-xs bg-gray-100 px-2 rounded font-normal">{e.role}</span></h4><p className="text-xs text-gray-500">{e.date}</p><p className="text-sm mt-1">{e.description}</p></div></div><div className="flex gap-2"><button onClick={(event) => { event.stopPropagation(); openEditEvent(e); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full"><FaEdit /></button><button onClick={(event) => { event.stopPropagation(); e.id && deleteEvent(e.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><FaTrash /></button></div></div>))}</div>
           </div>
         )}
 
         {activeTab === 'cv-import' && (
           <div className="p-8 flex items-center justify-center h-full">
             {loadingImport ? (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-500 border-solid mx-auto mb-4"></div>
-                <h2 className="text-xl font-bold">AI Processing...</h2>
-                <p className="text-gray-500">Creating bilingual profile from CV.</p>
-              </div>
+              <div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-t-4 border-orange-500 border-solid mx-auto mb-4"></div><h2 className="text-xl font-bold">AI Processing...</h2></div>
             ) : (
               <div className="bg-white p-10 rounded-2xl shadow-lg text-center max-w-md w-full border-2 border-dashed border-gray-300">
-                <FaFileUpload className="mx-auto text-6xl text-orange-500 mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Import CV (PDF/DOCX)</h2>
-                <p className="text-gray-500 mb-6 text-sm">Upload CV to auto-generate a new profile.</p>
-                <label className="bg-orange-500 text-white px-6 py-3 rounded-lg font-bold cursor-pointer hover:bg-orange-600 transition block w-full">
-                  Select File
-                  <input type="file" hidden accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleImportCV} />
-                </label>
+                <FaFileUpload className="mx-auto text-6xl text-orange-500 mb-4" /><h2 className="text-2xl font-bold mb-2">Import CV</h2><p className="text-gray-500 mb-6 text-sm">Upload CV to auto-generate.</p>
+                <label className="bg-orange-500 text-white px-6 py-3 rounded-lg font-bold cursor-pointer hover:bg-orange-600 transition block w-full">Select File<input type="file" hidden accept=".pdf,.docx" onChange={handleImportCV} /></label>
               </div>
             )}
           </div>
@@ -499,181 +724,126 @@ const socket = new SockJS(import.meta.env.VITE_WS_URL);
         {activeTab === 'profile-list' && (
           <div className="p-8 overflow-y-auto h-full">
             <h2 className="text-2xl font-bold mb-6">Manage Profiles</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {profileList.map((p: any) => (
-                <div key={p.id} className={`bg-white p-6 rounded-xl border shadow-sm relative group hover:border-orange-500 transition`}>
-                  <div className="cursor-pointer" onClick={() => handleSwitchProfile(p.id)}>
-                    <div className="flex items-center gap-4 mb-4">
-                      <img src={p.avatarUrl || "https://placehold.co/100"} className="w-12 h-12 rounded-full bg-gray-200 object-cover" />
-                      <div>
-                        <h4 className="font-bold truncate max-w-[150px]">{p.fullName || "Unnamed"}</h4>
-                        <p className="text-xs text-gray-500 truncate max-w-[150px]">{p.jobTitle || "No Title"}</p>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-400">ID: {p.id}</div>
-                  </div>
-                  <div className="mt-4 flex justify-between items-center border-t pt-4">
-                    <button onClick={(e) => { e.stopPropagation(); handleActivateProfile(p.id, p.fullName); }}
-                      className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-bold hover:bg-green-200 transition flex items-center gap-1 shadow-sm border border-green-200">
-                      <FaGlobe /> Set Public
-                    </button>
-                    {portfolioData?.id === p.id && (
-                      <span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold flex items-center gap-1"><FaCheck /> Editing</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{profileList.map((p: any) => (<div key={p.id} className={`bg-white p-6 rounded-xl border shadow-sm relative group hover:border-orange-500 transition`}><div className="cursor-pointer" onClick={() => handleSwitchProfile(p.id)}><div className="flex items-center gap-4 mb-4"><img src={p.avatarUrl || "https://placehold.co/100"} className="w-12 h-12 rounded-full bg-gray-200 object-cover" /><div><h4 className="font-bold truncate max-w-[150px]">{p.fullName || "Unnamed"}</h4><p className="text-xs text-gray-500 truncate max-w-[150px]">{p.jobTitle || "No Title"}</p></div></div><div className="text-xs text-gray-400">ID: {p.id}</div></div><div className="mt-4 flex justify-between items-center border-t pt-4"><button onClick={(e) => { e.stopPropagation(); handleActivateProfile(p.id, p.fullName); }} className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-bold hover:bg-green-200 transition flex items-center gap-1 shadow-sm border border-green-200"><FaGlobe /> Set Public</button>{portfolioData?.id === p.id && (<span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold flex items-center gap-1"><FaCheck /> Editing</span>)}</div></div>))}</div>
+          </div>
+        )}
+
+        {/* --- MODALS CHO ORGANIZATION (REGION, LOCAL, DEPT) --- */}
+
+        {/* REGION MODAL */}
+        {showRegionModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4">
+              <h3 className="font-bold text-xl">{editingRegion.id ? 'Edit' : 'Add'} Region</h3>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Region Name</label>
+                <input className="w-full border p-2 rounded" placeholder="e.g. Miền Bắc" value={editingRegion.name || ''} onChange={e => setEditingRegion({ ...editingRegion, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Region Code (Unique)</label>
+                <input className="w-full border p-2 rounded uppercase" placeholder="e.g. MB" value={editingRegion.code || ''} onChange={e => setEditingRegion({ ...editingRegion, code: e.target.value?.toUpperCase() })} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowRegionModal(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
+                <button onClick={saveRegion} className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* --- MODALS --- */}
+        {/* LOCAL ORG MODAL */}
+        {showLocalModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4">
+              <h3 className="font-bold text-xl">{editingLocal.id ? 'Edit' : 'Add'} Local Org</h3>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Local Org Name</label>
+                <input className="w-full border p-2 rounded" placeholder="e.g. Chi Nhánh Hà Nội" value={editingLocal.name || ''} onChange={e => setEditingLocal({ ...editingLocal, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Org Code (Unique)</label>
+                <input className="w-full border p-2 rounded uppercase" placeholder="e.g. HN" value={editingLocal.code || ''} onChange={e => setEditingLocal({ ...editingLocal, code: e.target.value?.toUpperCase() })} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Belongs to Region</label>
+                <select className="w-full border p-2 rounded" value={editingLocal.regionId} onChange={e => setEditingLocal({ ...editingLocal, regionId: Number(e.target.value) })}>
+                  <option value="">Select Region</option>
+                  {(regions || []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowLocalModal(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
+                <button onClick={saveLocal} className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600">Save</button>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* PROJECT MODAL */}
+        {/* DEPARTMENT MODAL */}
+        {showDeptModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm p-6 space-y-4">
+              <h3 className="font-bold text-xl">{editingDept.id ? 'Edit' : 'Add'} Department</h3>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Department Name</label>
+                <input className="w-full border p-2 rounded" placeholder="e.g. Phòng IT" value={editingDept.name || ''} onChange={e => setEditingDept({ ...editingDept, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Dept Code (Unique)</label>
+                <input className="w-full border p-2 rounded uppercase" placeholder="e.g. IT" value={editingDept.code || ''} onChange={e => setEditingDept({ ...editingDept, code: e.target.value?.toUpperCase() })} />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500">Belongs to Local Org</label>
+                <select className="w-full border p-2 rounded" value={editingDept.localOrgId} onChange={e => setEditingDept({ ...editingDept, localOrgId: Number(e.target.value) })}>
+                  <option value="">Select Local Org</option>
+                  {(locals || []).map(l => <option key={l.id} value={l.id}>{l.name} ({l.code})</option>)}
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowDeptModal(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
+                <button onClick={saveDept} className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600">Save</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CÁC MODAL KHÁC (Project, Exp...) */}
         {showProjectModal && editingProject && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 space-y-6">
-              <div className="flex justify-between items-center border-b pb-4">
-                <h3 className="font-bold text-2xl">{editingProject.id ? 'Edit Project' : 'New Project'}</h3>
-                <button onClick={() => setShowProjectModal(false)}><FaTimes /></button>
-              </div>
+              <div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">{editingProject.id ? 'Edit Project' : 'New Project'}</h3><button onClick={() => setShowProjectModal(false)}><FaTimes /></button></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase">Title</label>
-                  <input className="w-full border p-2 rounded" value={editingProject.title || ''} onChange={e => setEditingProject({ ...editingProject, title: e.target.value })} />
-                </div>
+                <div className="col-span-2"><label className="text-xs font-bold text-gray-400 uppercase">Title</label><input className="w-full border p-2 rounded" value={editingProject.title || ''} onChange={e => setEditingProject({ ...editingProject, title: e.target.value })} /></div>
                 <div><label className="text-xs font-bold text-gray-400 uppercase">Role</label><input className="w-full border p-2 rounded" value={editingProject.role || ''} onChange={e => setEditingProject({ ...editingProject, role: e.target.value })} /></div>
                 <div><label className="text-xs font-bold text-gray-400 uppercase">Customer</label><input className="w-full border p-2 rounded" value={editingProject.customer || ''} onChange={e => setEditingProject({ ...editingProject, customer: e.target.value })} /></div>
                 <div className="col-span-2"><label className="text-xs font-bold text-gray-400 uppercase">Tech Stack</label><input className="w-full border p-2 rounded" value={editingProject.technologies?.join(', ') || ''} onChange={e => setEditingProject({ ...editingProject, technologies: e.target.value.split(',').map(s => s.trim()) })} /></div>
-
-                {/* PROJECT IMAGE */}
-                <div className="col-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Image</label>
-                  <label className="cursor-pointer relative w-full h-48 rounded-xl border-2 border-dashed border-gray-300 hover:border-orange-500 flex flex-col items-center justify-center bg-gray-50 overflow-hidden group transition-all">
-                    <input type="file" hidden onChange={(e) => handleFileUpload(e, 'project')} />
-                    {uploading ? (
-                      <div className="flex flex-col items-center text-orange-500"><FaSpinner className="animate-spin text-3xl mb-2" /><span className="text-sm font-bold">Uploading...</span></div>
-                    ) : editingProject.imageUrl ? (
-                      <div className="relative w-full h-full">
-                        <img src={editingProject.imageUrl} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                          <span className="text-white font-bold flex items-center gap-2"><FaCloudUploadAlt /> Change Image</span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-gray-400 text-center"><FaImage className="text-4xl mx-auto mb-2" /><span className="text-sm">Click to upload image</span></div>
-                    )}
-                  </label>
-                </div>
-
+                <div className="col-span-2"><label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Image</label><label className="cursor-pointer relative w-full h-48 rounded-xl border-2 border-dashed border-gray-300 hover:border-orange-500 flex flex-col items-center justify-center bg-gray-50 overflow-hidden group transition-all"><input type="file" hidden onChange={(e) => handleFileUpload(e, 'project')} />{uploading ? (<div className="flex flex-col items-center text-orange-500"><FaSpinner className="animate-spin text-3xl mb-2" /><span className="text-sm font-bold">Uploading...</span></div>) : editingProject.imageUrl ? (<div className="relative w-full h-full"><img src={editingProject.imageUrl} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><span className="text-white font-bold flex items-center gap-2"><FaCloudUploadAlt /> Change Image</span></div></div>) : (<div className="text-gray-400 text-center"><FaImage className="text-4xl mx-auto mb-2" /><span className="text-sm">Click to upload image</span></div>)}</label></div>
                 <div className="col-span-2"><label className="text-xs font-bold text-gray-400 uppercase">Repo URL</label><input className="w-full border p-2 rounded" value={editingProject.repoUrl || ''} onChange={e => setEditingProject({ ...editingProject, repoUrl: e.target.value })} /></div>
                 <div className="col-span-2"><label className="text-xs font-bold text-gray-400 uppercase">Description</label><textarea className="w-full border p-2 rounded" rows={4} value={editingProject.description || ''} onChange={e => setEditingProject({ ...editingProject, description: e.target.value })} /></div>
               </div>
-              <div className="flex justify-end gap-3 pt-6 border-t">
-                <button onClick={() => setShowProjectModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button>
-                <button onClick={saveProject} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold shadow-lg hover:bg-orange-600 transition">Save</button>
-              </div>
+              <div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowProjectModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveProject} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold shadow-lg hover:bg-orange-600 transition">Save</button></div>
             </div>
           </div>
         )}
 
-        {/* EXPERIENCE MODAL */}
         {showExpModal && editingExp && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6">
-              <div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Experience</h3><button onClick={() => setShowExpModal(false)}><FaTimes /></button></div>
-              <div className="grid grid-cols-2 gap-4">
-                <input className="border p-2 rounded" placeholder="Company" value={editingExp.company || ''} onChange={e => setEditingExp({ ...editingExp, company: e.target.value })} />
-                <input className="border p-2 rounded" placeholder="Role" value={editingExp.role || ''} onChange={e => setEditingExp({ ...editingExp, role: e.target.value })} />
-                <input type="date" className="border p-2 rounded" value={editingExp.startDate || ''} onChange={e => setEditingExp({ ...editingExp, startDate: e.target.value })} />
-                <div className="flex gap-2 items-center"><input type="date" disabled={editingExp.isCurrent} className="border p-2 rounded flex-1" value={editingExp.endDate || ''} onChange={e => setEditingExp({ ...editingExp, endDate: e.target.value })} /><label><input type="checkbox" checked={editingExp.isCurrent || false} onChange={e => setEditingExp({ ...editingExp, isCurrent: e.target.checked })} /> Present</label></div>
-              </div>
-              <textarea className="w-full border p-2 rounded" rows={3} placeholder="Description" value={editingExp.description || ''} onChange={e => setEditingExp({ ...editingExp, description: e.target.value })} />
-              <div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowExpModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveExperience} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div>
-            </div>
-          </div>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6"><div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Experience</h3><button onClick={() => setShowExpModal(false)}><FaTimes /></button></div><div className="grid grid-cols-2 gap-4"><input className="border p-2 rounded" placeholder="Company" value={editingExp.company || ''} onChange={e => setEditingExp({ ...editingExp, company: e.target.value })} /><input className="border p-2 rounded" placeholder="Role" value={editingExp.role || ''} onChange={e => setEditingExp({ ...editingExp, role: e.target.value })} /><input type="date" className="border p-2 rounded" value={editingExp.startDate || ''} onChange={e => setEditingExp({ ...editingExp, startDate: e.target.value })} /><div className="flex gap-2 items-center"><input type="date" disabled={editingExp.isCurrent} className="border p-2 rounded flex-1" value={editingExp.endDate || ''} onChange={e => setEditingExp({ ...editingExp, endDate: e.target.value })} /><label><input type="checkbox" checked={editingExp.isCurrent || false} onChange={e => setEditingExp({ ...editingExp, isCurrent: e.target.checked })} /> Present</label></div></div><textarea className="w-full border p-2 rounded" rows={3} placeholder="Description" value={editingExp.description || ''} onChange={e => setEditingExp({ ...editingExp, description: e.target.value })} /><div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowExpModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveExperience} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div></div></div>
         )}
 
-        {/* SKILL MODAL */}
         {showSkillModal && editingSkill && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-md p-8 space-y-6">
-              <div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Skill</h3><button onClick={() => setShowSkillModal(false)}><FaTimes /></button></div>
-              <div className="space-y-4">
-                <div><label className="text-xs font-bold text-gray-500">Name</label><input className="w-full border p-2 rounded" value={editingSkill.name || ''} onChange={e => setEditingSkill({ ...editingSkill, name: e.target.value })} /></div>
-                <div><label className="text-xs font-bold text-gray-500">Type</label><select className="w-full border p-2 rounded" value={editingSkill.category} onChange={e => setEditingSkill({ ...editingSkill, category: e.target.value })}><option>Backend</option><option>Frontend</option><option>Database</option><option>DevOps</option><option>Scientific</option></select></div>
-                <div><label className="text-xs font-bold text-gray-500">Proficiency (%)</label><input type="number" className="w-full border p-2 rounded" value={editingSkill.proficiency || 0} onChange={e => setEditingSkill({ ...editingSkill, proficiency: parseInt(e.target.value) })} /></div>
-              </div>
-              <div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowSkillModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveSkill} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div>
-            </div>
-          </div>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl w-full max-w-md p-8 space-y-6"><div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Skill</h3><button onClick={() => setShowSkillModal(false)}><FaTimes /></button></div><div className="space-y-4"><div><label className="text-xs font-bold text-gray-500">Name</label><input className="w-full border p-2 rounded" value={editingSkill.name || ''} onChange={e => setEditingSkill({ ...editingSkill, name: e.target.value })} /></div><div><label className="text-xs font-bold text-gray-500">Type</label><select className="w-full border p-2 rounded" value={editingSkill.category} onChange={e => setEditingSkill({ ...editingSkill, category: e.target.value })}><option>Backend</option><option>Frontend</option><option>Database</option><option>DevOps</option><option>Scientific</option></select></div><div><label className="text-xs font-bold text-gray-500">Proficiency (%)</label><input type="number" className="w-full border p-2 rounded" value={editingSkill.proficiency || 0} onChange={e => setEditingSkill({ ...editingSkill, proficiency: parseInt(e.target.value) })} /></div></div><div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowSkillModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveSkill} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div></div></div>
         )}
 
-        {/* EDUCATION MODAL */}
         {showEduModal && editingEdu && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6">
-              <div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Education</h3><button onClick={() => setShowEduModal(false)}><FaTimes /></button></div>
-              <div className="grid grid-cols-2 gap-4">
-                <input className="border p-2 rounded" placeholder="School" value={editingEdu.schoolName || ''} onChange={e => setEditingEdu({ ...editingEdu, schoolName: e.target.value })} />
-                <input className="border p-2 rounded" placeholder="Degree" value={editingEdu.degree || ''} onChange={e => setEditingEdu({ ...editingEdu, degree: e.target.value })} />
-                <input type="date" className="border p-2 rounded" value={editingEdu.startDate || ''} onChange={e => setEditingEdu({ ...editingEdu, startDate: e.target.value })} />
-                <input type="date" className="border p-2 rounded" value={editingEdu.endDate || ''} onChange={e => setEditingEdu({ ...editingEdu, endDate: e.target.value })} />
-              </div>
-              <textarea className="w-full border p-2 rounded" placeholder="Description" value={editingEdu.description || ''} onChange={e => setEditingEdu({ ...editingEdu, description: e.target.value })} />
-              <div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowEduModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveEducation} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div>
-            </div>
-          </div>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6"><div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Education</h3><button onClick={() => setShowEduModal(false)}><FaTimes /></button></div><div className="grid grid-cols-2 gap-4"><input className="border p-2 rounded" placeholder="School" value={editingEdu.schoolName || ''} onChange={e => setEditingEdu({ ...editingEdu, schoolName: e.target.value })} /><input className="border p-2 rounded" placeholder="Degree" value={editingEdu.degree || ''} onChange={e => setEditingEdu({ ...editingEdu, degree: e.target.value })} /><input type="date" className="border p-2 rounded" value={editingEdu.startDate || ''} onChange={e => setEditingEdu({ ...editingEdu, startDate: e.target.value })} /><input type="date" className="border p-2 rounded" value={editingEdu.endDate || ''} onChange={e => setEditingEdu({ ...editingEdu, endDate: e.target.value })} /></div><textarea className="w-full border p-2 rounded" placeholder="Description" value={editingEdu.description || ''} onChange={e => setEditingEdu({ ...editingEdu, description: e.target.value })} /><div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowEduModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveEducation} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div></div></div>
         )}
 
-        {/* PUBLICATION MODAL */}
         {showPubModal && editingPub && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6">
-              <div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Publication</h3><button onClick={() => setShowPubModal(false)}><FaTimes /></button></div>
-              <div className="grid grid-cols-2 gap-4">
-                <input className="border p-2 rounded col-span-2" placeholder="Title" value={editingPub.title || ''} onChange={e => setEditingPub({ ...editingPub, title: e.target.value })} />
-                <input className="border p-2 rounded" placeholder="Publisher" value={editingPub.publisher || ''} onChange={e => setEditingPub({ ...editingPub, publisher: e.target.value })} />
-                <input type="date" className="border p-2 rounded" value={editingPub.releaseDate || ''} onChange={e => setEditingPub({ ...editingPub, releaseDate: e.target.value })} />
-                <input className="border p-2 rounded col-span-2" placeholder="URL" value={editingPub.url || ''} onChange={e => setEditingPub({ ...editingPub, url: e.target.value })} />
-              </div>
-              <div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowPubModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={savePub} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div>
-            </div>
-          </div>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6"><div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Publication</h3><button onClick={() => setShowPubModal(false)}><FaTimes /></button></div><div className="grid grid-cols-2 gap-4"><input className="border p-2 rounded col-span-2" placeholder="Title" value={editingPub.title || ''} onChange={e => setEditingPub({ ...editingPub, title: e.target.value })} /><input className="border p-2 rounded" placeholder="Publisher" value={editingPub.publisher || ''} onChange={e => setEditingPub({ ...editingPub, publisher: e.target.value })} /><input type="date" className="border p-2 rounded" value={editingPub.releaseDate || ''} onChange={e => setEditingPub({ ...editingPub, releaseDate: e.target.value })} /><input className="border p-2 rounded col-span-2" placeholder="URL" value={editingPub.url || ''} onChange={e => setEditingPub({ ...editingPub, url: e.target.value })} /></div><div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowPubModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={savePub} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div></div></div>
         )}
 
-        {/* EVENT MODAL */}
         {showEventModal && editingEvent && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6">
-              <div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Event</h3><button onClick={() => setShowEventModal(false)}><FaTimes /></button></div>
-              <div className="grid grid-cols-2 gap-4">
-                <input className="border p-2 rounded" placeholder="Event Name" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} />
-                <input className="border p-2 rounded" placeholder="Role" value={editingEvent.role || ''} onChange={e => setEditingEvent({ ...editingEvent, role: e.target.value })} />
-                <input type="date" className="border p-2 rounded" value={editingEvent.date || ''} onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })} />
-
-                {/* EVENT IMAGE */}
-                <div className="col-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Event Image</label>
-                  <label className="cursor-pointer relative w-full h-32 rounded-lg border-2 border-dashed border-gray-300 hover:border-orange-500 flex flex-col items-center justify-center bg-gray-50 overflow-hidden group">
-                    <input type="file" hidden onChange={e => handleFileUpload(e, 'event')} />
-                    {uploading ? (
-                      <FaSpinner className="animate-spin text-orange-500 text-2xl" />
-                    ) : editingEvent.imageUrl ? (
-                      <div className="relative w-full h-full group">
-                        <img src={editingEvent.imageUrl} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><span className="text-white font-bold flex items-center gap-2"><FaCloudUploadAlt /> Change</span></div>
-                      </div>
-                    ) : (
-                      <div className="text-center"><FaImage className="text-2xl text-gray-400 mx-auto" /><span className="text-xs text-gray-400">Click to upload</span></div>
-                    )}
-                  </label>
-                </div>
-              </div>
-              <textarea className="w-full border p-2 rounded" placeholder="Description" value={editingEvent.description || ''} onChange={e => setEditingEvent({ ...editingEvent, description: e.target.value })} />
-              <div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowEventModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveEvent} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div>
-            </div>
-          </div>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl w-full max-w-2xl p-8 space-y-6"><div className="flex justify-between items-center border-b pb-4"><h3 className="font-bold text-2xl">Edit Event</h3><button onClick={() => setShowEventModal(false)}><FaTimes /></button></div><div className="grid grid-cols-2 gap-4"><input className="border p-2 rounded" placeholder="Event Name" value={editingEvent.name || ''} onChange={e => setEditingEvent({ ...editingEvent, name: e.target.value })} /><input className="border p-2 rounded" placeholder="Role" value={editingEvent.role || ''} onChange={e => setEditingEvent({ ...editingEvent, role: e.target.value })} /><input type="date" className="border p-2 rounded" value={editingEvent.date || ''} onChange={e => setEditingEvent({ ...editingEvent, date: e.target.value })} /><div className="col-span-2"><label className="text-xs font-bold text-gray-400 uppercase mb-2 block">Event Image</label><label className="cursor-pointer relative w-full h-32 rounded-lg border-2 border-dashed border-gray-300 hover:border-orange-500 flex flex-col items-center justify-center bg-gray-50 overflow-hidden group"><input type="file" hidden onChange={e => handleFileUpload(e, 'event')} />{uploading ? (<FaSpinner className="animate-spin text-orange-500 text-2xl" />) : editingEvent.imageUrl ? (<div className="relative w-full h-full group"><img src={editingEvent.imageUrl} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><span className="text-white font-bold flex items-center gap-2"><FaCloudUploadAlt /> Change</span></div></div>) : (<div className="text-center"><FaImage className="text-2xl text-gray-400 mx-auto" /><span className="text-xs text-gray-400">Click to upload</span></div>)}</label></div></div><textarea className="w-full border p-2 rounded" placeholder="Description" value={editingEvent.description || ''} onChange={e => setEditingEvent({ ...editingEvent, description: e.target.value })} /><div className="flex justify-end gap-3 pt-6 border-t"><button onClick={() => setShowEventModal(false)} className="px-6 py-2 text-gray-500 font-bold">Cancel</button><button onClick={saveEvent} className="px-8 py-2 bg-orange-500 text-white rounded-lg font-bold">Save</button></div></div></div>
         )}
 
         {incomingCalls.length > 0 && (

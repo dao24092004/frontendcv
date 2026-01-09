@@ -65,6 +65,12 @@ export interface PortfolioData {
   education: Education[];
   events?: any[];
   publications?: any[];
+
+
+  regionName?: string;
+  localOrgName?: string;
+  departmentName?: string;
+  departmentId?: number;
 }
 
 export interface ChatMessage {
@@ -73,4 +79,24 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   type: 'CHAT' | 'JOIN' | 'LEAVE';
+}
+
+export interface Region {
+  id: number;
+  name: string;
+  code: string;
+}
+export interface LocalOrg {
+  id: number;
+  name: string;
+  code: string;
+  regionId: number;
+  regionName: string;
+}
+export interface Department {
+  id: number;
+  name: string;
+  code: string;
+  localOrgId: number;
+  localOrgName: string;
 }

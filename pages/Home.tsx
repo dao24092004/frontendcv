@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useParams } from 'react-router-dom'; // <--- MỚI: Import hook lấy tham số URL
 import { portfolioService } from '../services/api';
 import { PortfolioData } from '../types';
 import Header from '../components/Header';
@@ -16,6 +17,9 @@ import { TechScene } from '@/components/TechScene';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 const Home: React.FC = () => {
+    // 1. LẤY THAM SỐ TỪ URL (MỚI)
+    const { id, rCode, lCode, dCode } = useParams();
+
     const [data, setData] = useState<PortfolioData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -61,19 +65,40 @@ const Home: React.FC = () => {
         documentTitle: data ? `${data.fullName}_Portfolio` : 'Portfolio',
     });
 
+    // 2. CẬP NHẬT LOGIC FETCH DATA (MỚI)
     const fetchData = async () => {
+        setLoading(true);
+        setError(false);
         try {
-            const result = await portfolioService.getPortfolioData();
+            let result: PortfolioData;
+
+            // Case 1: Link đầy đủ Code (Vùng/Miền/Phòng/ID)
+            if (id && rCode && lCode && dCode) {
+                result = await portfolioService.getPortfolioByHierarchyCodes(rCode, lCode, dCode, Number(id));
+            }
+            // Case 2: Link chỉ có ID
+            else if (id) {
+                result = await portfolioService.getPortfolioById(Number(id));
+            }
+            // Case 3: Mặc định (Trang chủ)
+            else {
+                result = await portfolioService.getPortfolioData();
+            }
+
             setData(result);
             setLoading(false);
         } catch (err) {
+            console.error("Error fetching data:", err);
             setError(true);
             setLoading(false);
         }
     };
 
+    // 3. EFFECT CHẠY LẠI KHI URL THAY ĐỔI
     useEffect(() => {
         fetchData();
+
+        // WebSocket logic (Giữ nguyên)
         const socket = new SockJS(`${API_BASE_URL}/ws`);
         const client = new Client({
             webSocketFactory: () => socket,
@@ -86,7 +111,7 @@ const Home: React.FC = () => {
         client.activate();
         stompClient.current = client;
         return () => { if (stompClient.current) stompClient.current.deactivate(); };
-    }, []);
+    }, [id, rCode, lCode, dCode]); // Thêm dependencies
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-[#FDFCF0] dark:bg-black">
@@ -97,11 +122,10 @@ const Home: React.FC = () => {
         </div>
     );
 
-    if (error || !data) return <div className="p-20 text-center font-bold text-red-400">Connection Error</div>;
+    if (error || !data) return <div className="p-20 text-center font-bold text-red-400">Connection Error / Invalid Profile URL</div>;
 
     const hasData = (arr: any) => arr && arr.length > 0;
 
-    // Class dùng chung cho các tiêu đề lớn (H2) để tạo hiệu ứng phát sáng trong chế độ tối
     const headingClassName = "text-5xl md:text-7xl font-black tracking-tighter uppercase text-slate-900 dark:text-white dark:drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]";
 
     return (
@@ -121,6 +145,19 @@ const Home: React.FC = () => {
             >
                 {/* <DarkModeSwitch isDark={isDark} toggleDark={toggleDark} /> */}
             </Header>
+
+            {/* 4. HIỂN THỊ BREADCRUMB TỔ CHỨC (MỚI THÊM - STYLE TINH TẾ)
+            {data.regionName && (
+                <div className="fixed top-24 left-0 right-0 z-40 flex justify-center pointer-events-none animate-fade-in-down">
+                    <div className="bg-white/80 dark:bg-black/50 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] md:text-xs font-mono font-bold text-slate-600 dark:text-orange-400 border border-slate-200 dark:border-orange-500/30 shadow-lg flex items-center gap-2">
+                        <span>{data.regionName}</span>
+                        <span className="text-orange-500">&gt;</span>
+                        <span>{data.localOrgName}</span>
+                        <span className="text-orange-500">&gt;</span>
+                        <span className="text-slate-900 dark:text-white">{data.departmentName}</span>
+                    </div>
+                </div>
+            )} */}
 
             <motion.div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 origin-left z-[110]" style={{ scaleX }} />
 

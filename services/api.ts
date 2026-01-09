@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { PortfolioData, Project, Skill, ChatMessage, WorkExperience } from './../types/index';
+import { PortfolioData, Project, Skill, ChatMessage, WorkExperience, Region, LocalOrg, Department } from './../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 const API_URL = `${API_BASE_URL}/api/v1`;
@@ -31,6 +31,13 @@ const mapBackendToFrontend = (data: any): PortfolioData => {
     avatarUrl: resolveImageUrl(data.avatarUrl),
     strengths: data.strengths || "Problem Solving",
     workStyle: data.workStyle || "Professional",
+
+    // --- Map thông tin tổ chức ---
+    regionName: data.regionName,
+    localOrgName: data.localOrgName,
+    departmentName: data.departmentName,
+    departmentId: data.departmentId,
+
     contact: {
       email: data.contact?.email || "",
       github: data.contact?.github || "",
@@ -38,9 +45,8 @@ const mapBackendToFrontend = (data: any): PortfolioData => {
       location: data.contact?.address || "Unknown",
       phone: data.contact?.phone
     },
-    // --- QUAN TRỌNG: Kiểm tra kỹ trường id ở đây ---
     projects: Array.isArray(data.projects) ? data.projects.map((p: any) => ({
-      id: p.id, // Đảm bảo Backend trả về field tên là 'id'
+      id: p.id,
       title: p.name || p.nameVi || p.nameEn,
       description: p.description || p.descriptionVi || p.descriptionEn,
       imageUrl: resolveImageUrl(p.imageUrl),
@@ -101,6 +107,15 @@ export const portfolioService = {
     const response = await api.get(`/admin/portfolio/${id}`);
     return mapBackendToFrontend(response.data);
   },
+  getPortfolioByHierarchyCodes: async (
+    rCode: string,
+    lCode: string,
+    dCode: string,
+    pid: number
+  ): Promise<PortfolioData> => {
+    const response = await api.get(`/view/code/${rCode}/${lCode}/${dCode}/${pid}`);
+    return mapBackendToFrontend(response.data);
+  },
   downloadCV: async () => window.open(`${API_URL}/export/cv-data`, '_blank'),
   getChatHistory: async () => (await api.get<ChatMessage[]>('/chat/history')).data
 };
@@ -114,19 +129,8 @@ export const adminService = {
   getAllProfiles: async () => (await api.get('/admin/list')).data,
 
   updateProfile: async (data: any) => {
-    const payload = {
-      id: data.id,
-      fullName: data.fullName,
-      jobTitle: data.jobTitle,
-      bio: data.bio,
-      avatarUrl: data.avatarUrl,
-      contact: {
-        email: data.contact?.email,
-        phone: data.contact?.phone,
-        address: data.contact?.location
-      }
-    };
-    return api.put('/admin/profile', payload);
+    // API update profile chấp nhận cả các field cũ và departmentId
+    return api.put('/admin/profile', data);
   },
 
   activateProfile: async (id: number) => api.post(`/admin/profile/${id}/activate`),
@@ -137,42 +141,64 @@ export const adminService = {
   },
   getProjectDetail: (id: number) => api.get(`/admin/projects/${id}`),
 
-  // --- PROJECTS ---
-  createProject: async (project: Project, profileId: number) => {
-    // Đảm bảo gửi đúng tham số profileId
-    return api.post('/admin/projects', { ...project, profileId });
+  // ============================================================
+  // QUẢN LÝ TỔ CHỨC (ORGANIZATION) - FULL CRUD
+  // ============================================================
+
+  // 1. REGION (Vùng)
+  getRegions: async () => (await api.get<Region[]>('/org/regions')).data,
+  createRegion: async (data: { name: string; code: string }) => api.post('/org/regions', data),
+  updateRegion: async (id: number, data: { name: string; code: string }) => api.put(`/org/regions/${id}`, data),
+  deleteRegion: async (id: number) => api.delete(`/org/regions/${id}`),
+
+  // 2. LOCAL ORG (Chi nhánh)
+  getLocals: async () => (await api.get<LocalOrg[]>('/org/locals')).data,
+  createLocal: async (data: { name: string; code: string; regionId: number }) => api.post('/org/locals', data),
+  updateLocal: async (id: number, data: { name: string; code: string; regionId: number }) => api.put(`/org/locals/${id}`, data),
+  deleteLocal: async (id: number) => api.delete(`/org/locals/${id}`),
+
+  // 3. DEPARTMENT (Phòng ban)
+  getDepartments: async () => (await api.get<Department[]>('/org/departments')).data,
+  createDepartment: async (data: { name: string; code: string; localOrgId: number }) => api.post('/org/departments', data),
+  updateDepartment: async (id: number, data: { name: string; code: string; localOrgId: number }) => api.put(`/org/departments/${id}`, data),
+  deleteDepartment: async (id: number) => api.delete(`/org/departments/${id}`),
+
+  // 4. GÁN USER VÀO TỔ CHỨC
+  assignUserToOrg: async (profileId: number, departmentId: number) => {
+    const payload = { id: profileId, departmentId: departmentId };
+    return api.put('/admin/profile', payload);
   },
-  updateProject: async (project: Project, profileId: number) => {
-    // PUT request cần ID trên URL và Body chứa ID + ProfileID
-    return api.put(`/admin/projects/${project.id}`, { ...project, id: project.id, profileId });
-  },
+
+  // ============================================================
+  // CÁC MODULE KHÁC - GIỮ NGUYÊN
+  // ============================================================
+
+  // Projects
+  createProject: async (project: Project, profileId: number) => api.post('/admin/projects', { ...project, profileId }),
+  updateProject: async (project: Project, profileId: number) => api.put(`/admin/projects/${project.id}`, { ...project, id: project.id, profileId }),
   deleteProject: (id: number) => api.delete(`/admin/projects/${id}`),
 
-  // --- SKILLS ---
+  // Skills
   addSkill: (skill: Skill, profileId: number) => api.post('/admin/skills', { ...skill, profileId }),
   updateSkill: (skill: Skill, profileId: number) => api.put(`/admin/skills/${skill.id}`, { ...skill, id: skill.id, profileId }),
   deleteSkill: (id: number) => api.delete(`/admin/skills/${id}`),
 
-  // --- EXPERIENCES ---
-  addExperience: (exp: WorkExperience, profileId: number) => {
-    return api.post('/admin/experiences', { ...exp, profileId });
-  },
-  updateExperience: (exp: WorkExperience, profileId: number) => {
-    return api.put(`/admin/experiences/${exp.id}`, { ...exp, id: exp.id, profileId });
-  },
+  // Experiences
+  addExperience: (exp: WorkExperience, profileId: number) => api.post('/admin/experiences', { ...exp, profileId }),
+  updateExperience: (exp: WorkExperience, profileId: number) => api.put(`/admin/experiences/${exp.id}`, { ...exp, id: exp.id, profileId }),
   deleteExperience: (id: number) => api.delete(`/admin/experiences/${id}`),
 
-  // --- EDUCATION ---
+  // Education
   addEducation: (edu: any, profileId: number) => api.post('/admin/educations', { ...edu, profileId }),
   updateEducation: (edu: any, profileId: number) => api.put(`/admin/educations/${edu.id}`, { ...edu, id: edu.id, profileId }),
   deleteEducation: (id: number) => api.delete(`/admin/educations/${id}`),
 
-  // --- PUBLICATIONS ---
+  // Publications
   addPublication: (pub: any, profileId: number) => api.post('/admin/publications', { ...pub, profileId }),
   updatePublication: (pub: any, profileId: number) => api.put(`/admin/publications/${pub.id}`, { ...pub, id: pub.id, profileId }),
   deletePublication: (id: number) => api.delete(`/admin/publications/${id}`),
 
-  // --- EVENTS ---
+  // Events
   addEvent: (evt: any, profileId: number) => api.post('/admin/events', { ...evt, profileId }),
   updateEvent: (evt: any, profileId: number) => api.put(`/admin/events/${evt.id}`, { ...evt, id: evt.id, profileId }),
   deleteEvent: (id: number) => api.delete(`/admin/events/${id}`),
