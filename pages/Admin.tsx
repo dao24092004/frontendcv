@@ -266,14 +266,40 @@ const Admin: React.FC = () => {
   // LOGIC ORGANIZATION (SỬA LỖI FLAT DATA & THÊM CODE)
   // ==========================================
 
-  // 1. Gán User vào Tổ chức
+  // Helper function to get assignment level text
+  const getAssignmentLevelText = () => {
+    if (selDeptId) return "Department Level";
+    if (selLocalId) return "Local Org Level";
+    if (selRegionId) return "Region Level";
+    return "No Level Selected";
+  };
+
+  // 1. Gán User vào Tổ chức (FLEXIBLE LEVELS)
   const handleAssignOrg = async () => {
-    if (!portfolioData?.id || !selDeptId) { alert("Vui lòng chọn phòng ban!"); return; }
+    if (!portfolioData?.id) { 
+      alert("Không tìm thấy thông tin profile!"); 
+      return; 
+    }
+    
+    // Check if at least one level is selected
+    if (!selDeptId && !selLocalId && !selRegionId) {
+      alert("Vui lòng chọn ít nhất một cấp độ tổ chức (Vùng, Chi nhánh, hoặc Phòng ban)!");
+      return;
+    }
+    
     try {
-      await adminService.assignUserToOrg(portfolioData.id, Number(selDeptId));
+      // Assign to the most specific level available
+      await adminService.assignUserToOrg(
+        portfolioData.id, 
+        selDeptId ? Number(selDeptId) : undefined,
+        selLocalId ? Number(selLocalId) : undefined, 
+        selRegionId ? Number(selRegionId) : undefined
+      );
       alert("✅ Đã gán tổ chức thành công!");
       fetchInitialData();
-    } catch (e) { alert("Lỗi khi gán tổ chức"); }
+    } catch (e) { 
+      alert("Lỗi khi gán tổ chức"); 
+    }
   };
 
   // 2. CRUD Region
@@ -322,21 +348,33 @@ const Admin: React.FC = () => {
 
   // --- LOGIC SINH LINK CHIA SẺ (MỚI THÊM) ---
   const generateShareLink = () => {
-    if (!portfolioData?.id || !selRegionId || !selLocalId || !selDeptId) return null;
+    if (!portfolioData?.id) return null;
 
-    // 1. Tìm Object từ ID đang chọn
-    const r = regions.find(item => item.id === Number(selRegionId));
-    const l = locals.find(item => item.id === Number(selLocalId));
-    const d = departments.find(item => item.id === Number(selDeptId));
+    // Get the base URL
+    const origin = window.location.origin;
+    
+    // Build URL based on available organization levels
+    const r = selRegionId ? regions.find(item => item.id === Number(selRegionId)) : null;
+    const l = selLocalId ? locals.find(item => item.id === Number(selLocalId)) : null;
+    const d = selDeptId ? departments.find(item => item.id === Number(selDeptId)) : null;
 
-    // 2. Kiểm tra xem có đủ Code không
+    // Generate URL based on available levels
     if (r?.code && l?.code && d?.code) {
-      // Lấy domain hiện tại (VD: http://localhost:5173)
-      const origin = window.location.origin;
-      // Ghép chuỗi (Lưu ý: Dùng /#/ nếu dùng HashRouter, nếu BrowserRouter thì bỏ #)
+      // Full hierarchy: Region/Local/Department/ID
       return `${origin}/#/view/${r.code}/${l.code}/${d.code}/${portfolioData.id}`;
     }
-    return null;
+    else if (r?.code && l?.code) {
+      // Region + Local + ID
+      return `${origin}/#/view/${r.code}/${l.code}/${portfolioData.id}`;
+    }
+    else if (r?.code) {
+      // Region + ID
+      return `${origin}/#/view/${r.code}/${portfolioData.id}`;
+    }
+    else {
+      // ID only (fallback)
+      return `${origin}/#/view/${portfolioData.id}`;
+    }
   };
 
   const generatedLink = generateShareLink();
@@ -555,14 +593,21 @@ const Admin: React.FC = () => {
                 </div>
 
                 {/* NÚT SAVE */}
-                <button
-                  onClick={handleAssignOrg}
-                  disabled={!selDeptId}
-                  className={`px-8 py-3 rounded-lg font-bold text-white shadow-lg transition flex items-center gap-2 whitespace-nowrap
-                    ${selDeptId ? 'bg-orange-500 hover:bg-orange-600 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
-                >
-                  <FaCheck /> Confirm Assignment
-                </button>
+                <div className="flex flex-col gap-2">
+                  {(selRegionId || selLocalId || selDeptId) && (
+                    <div className="text-xs text-gray-500 text-center">
+                      Will assign to: <span className="font-semibold text-orange-600">{getAssignmentLevelText()}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleAssignOrg}
+                    disabled={!selRegionId && !selLocalId && !selDeptId}
+                    className={`px-8 py-3 rounded-lg font-bold text-white shadow-lg transition flex items-center gap-2 whitespace-nowrap
+                      ${(selRegionId || selLocalId || selDeptId) ? 'bg-orange-500 hover:bg-orange-600 hover:scale-105' : 'bg-gray-300 cursor-not-allowed'}`}
+                  >
+                    <FaCheck /> Confirm Assignment
+                  </button>
+                </div>
               </div>
             </div>
 

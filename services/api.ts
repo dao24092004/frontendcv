@@ -116,6 +116,19 @@ export const portfolioService = {
     const response = await api.get(`/view/code/${rCode}/${lCode}/${dCode}/${pid}`);
     return mapBackendToFrontend(response.data);
   },
+  // New flexible methods for different hierarchy levels
+  getPortfolioByRegion: async (regionCode: string, pid: number): Promise<PortfolioData> => {
+    const response = await api.get(`/view/${regionCode}/${pid}`);
+    return mapBackendToFrontend(response.data);
+  },
+  getPortfolioByLocalOrg: async (regionCode: string, localCode: string, pid: number): Promise<PortfolioData> => {
+    const response = await api.get(`/view/${regionCode}/${localCode}/${pid}`);
+    return mapBackendToFrontend(response.data);
+  },
+  getPortfolioByDepartment: async (regionCode: string, localCode: string, deptCode: string, pid: number): Promise<PortfolioData> => {
+    const response = await api.get(`/view/code/${regionCode}/${localCode}/${deptCode}/${pid}`);
+    return mapBackendToFrontend(response.data);
+  },
   downloadCV: async () => window.open(`${API_URL}/export/cv-data`, '_blank'),
   getChatHistory: async () => (await api.get<ChatMessage[]>('/chat/history')).data
 };
@@ -163,9 +176,19 @@ export const adminService = {
   updateDepartment: async (id: number, data: { name: string; code: string; localOrgId: number }) => api.put(`/org/departments/${id}`, data),
   deleteDepartment: async (id: number) => api.delete(`/org/departments/${id}`),
 
-  // 4. GÁN USER VÀO TỔ CHỨC
-  assignUserToOrg: async (profileId: number, departmentId: number) => {
-    const payload = { id: profileId, departmentId: departmentId };
+  // 4. GÁN USER VÀO TỔ CHỨC (FLEXIBLE LEVELS)
+  assignUserToOrg: async (profileId: number, departmentId?: number, localOrgId?: number, regionId?: number) => {
+    const payload: any = { id: profileId };
+    
+    // Assign to the most specific level available
+    if (departmentId) {
+      payload.departmentId = departmentId;
+    } else if (localOrgId) {
+      payload.localOrgId = localOrgId;
+    } else if (regionId) {
+      payload.regionId = regionId;
+    }
+    
     return api.put('/admin/profile', payload);
   },
 
