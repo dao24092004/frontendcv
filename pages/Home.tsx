@@ -72,16 +72,27 @@ const Home: React.FC = () => {
         try {
             let result: PortfolioData;
 
-            // Case 1: Link đầy đủ Code (Vùng/Miền/Phòng/ID)
-            if (id && rCode && lCode && dCode) {
-                result = await portfolioService.getPortfolioByHierarchyCodes(rCode, lCode, dCode, Number(id));
+            // Determine the number of parameters to decide which API to call
+            const params = [rCode, lCode, dCode].filter(Boolean);
+            
+            if (id && params.length === 3) {
+                // Case 1: Full hierarchy (Region/Local/Department/ID)
+                result = await portfolioService.getPortfolioByHierarchyCodes(rCode!, lCode!, dCode!, Number(id));
             }
-            // Case 2: Link chỉ có ID
+            else if (id && params.length === 2) {
+                // Case 2: Region + Local + ID
+                result = await portfolioService.getPortfolioByLocalOrg(rCode!, lCode!, Number(id));
+            }
+            else if (id && params.length === 1) {
+                // Case 3: Region + ID
+                result = await portfolioService.getPortfolioByRegion(rCode!, Number(id));
+            }
             else if (id) {
+                // Case 4: ID only
                 result = await portfolioService.getPortfolioById(Number(id));
             }
-            // Case 3: Mặc định (Trang chủ)
             else {
+                // Case 5: Default (Homepage)
                 result = await portfolioService.getPortfolioData();
             }
 

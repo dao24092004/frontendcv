@@ -10,6 +10,10 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/admin" element={<Admin />} />
+        {/* Flexible hierarchy routes */}
+        <Route path="/view/:id" element={<Home />} />
+        <Route path="/view/:rCode/:id" element={<Home />} />
+        <Route path="/view/:rCode/:lCode/:id" element={<Home />} />
         <Route path="/view/:rCode/:lCode/:dCode/:id" element={<Home />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
