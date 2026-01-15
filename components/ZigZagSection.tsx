@@ -1,30 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Project } from '../types';
-import { FaGithub, FaExternalLinkAlt } from 'react-icons/fa';
 import ImageViewer from './ImageViewer';
+import ProjectModal from './ProjectModal';
+import { getTranslation } from '../utils/translations';
 
 interface ZigZagSectionProps {
   projects: Project[];
 }
 
 const ZigZagSection: React.FC<ZigZagSectionProps> = ({ projects }) => {
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   if (!projects || projects.length === 0) return null;
 
+  // Helper function to get short description (1-2 lines, ~120 chars)
+  const getShortDescription = (description: string): string => {
+    if (!description) return '';
+    // Take first sentence or first 120 characters
+    const firstSentence = description.split(/[.!?]/)[0];
+    if (firstSentence.length <= 120) {
+      return firstSentence + (description.includes('.') ? '.' : '');
+    }
+    return description.substring(0, 120).trim() + '...';
+  };
+
+  const handleProjectClick = (project: Project) => {
+    setSelectedProject(project);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    // Small delay to allow animation to complete
+    setTimeout(() => setSelectedProject(null), 300);
+  };
+
   return (
-    <section className="py-20 bg-transparent overflow-hidden relative z-10">
+    <section className="py-8 md:py-12 bg-transparent overflow-hidden relative z-10">
       <div className="container mx-auto px-6">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="text-3xl font-bold text-center text-canva-primary mb-16 font-sans relative"
+          className="text-3xl font-bold text-center text-canva-primary mb-8 md:mb-10 font-sans relative"
         >
-          <span className="relative z-10">Featured Projects</span>
+          <span className="relative z-10">{getTranslation('projects.featuredProjects')}</span>
           <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-canva-secondary rounded-full opacity-50"></span>
         </motion.h2>
 
-        <div className="space-y-32">
+        <div className="space-y-10 md:space-y-12">
           {projects.map((project, index) => {
             const isEven = index % 2 === 0;
             const galleryImages = project.gallery && project.gallery.length > 0
@@ -41,7 +67,7 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({ projects }) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className={`flex flex-col md:flex-row items-center gap-12 lg:gap-20 ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'
+                className={`flex flex-col md:flex-row items-center gap-8 lg:gap-12 ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'
                   }`}
               >
                 {/* Image Side - Ảnh chồng lên nhau + click mở viewer */}
@@ -64,7 +90,8 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({ projects }) => {
                             transform: `translate(${i * 20}px, ${i * 20}px) rotate(${i * 8}deg)`,
                             zIndex: previewImages.length - i,
                           }}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering project modal
                             // Mở viewer khi click vào bất kỳ ảnh nào
                             const viewer = document.getElementById(`image-viewer-${project.id || index}`);
                             if (viewer) {
@@ -99,48 +126,64 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({ projects }) => {
                   <ImageViewer id={`image-viewer-${project.id || index}`} images={galleryImages} />
                 </div>
 
-                {/* Content Side */}
-                <div className="w-full md:w-1/2 space-y-6">
-                  <h3 className="text-3xl font-bold text-canva-text hover:text-canva-primary transition-colors cursor-default relative inline-block">
+                {/* Content Side - Clickable to open modal */}
+                <div 
+                  className="w-full md:w-1/2 space-y-4 cursor-pointer group"
+                  onClick={() => handleProjectClick(project)}
+                >
+                  {/* Project Title */}
+                  <h3 className="text-3xl font-bold text-canva-text group-hover:text-canva-primary transition-colors relative inline-block">
                     {project.title}
                     <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-canva-primary transition-all duration-300 group-hover:w-full"></span>
                   </h3>
-                  <p className="text-canva-gray leading-relaxed text-lg">
-                    {project.description}
+
+                  {/* Role - if available */}
+                  {project.role && (
+                    <p className="text-orange-500 font-semibold text-sm uppercase tracking-wide">
+                      {project.role}
+                    </p>
+                  )}
+
+                  {/* Short Description - 1-2 lines only */}
+                  <p className="text-canva-gray leading-relaxed text-base line-clamp-2">
+                    {getShortDescription(project.description)}
                   </p>
 
-                  {/* Tech Stack Pills */}
-                  <div className="flex flex-wrap gap-3 mt-4">
-                    {project.technologies.map((tech, i) => (
+                  {/* Tech Stack - Compact display */}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {project.technologies.slice(0, 5).map((tech, i) => (
                       <motion.span
                         key={i}
-                        whileHover={{ scale: 1.1 }}
-                        className="px-4 py-1.5 text-xs font-semibold text-canva-text bg-white border border-canva-secondary/50 rounded-full cursor-default shadow-sm transition-all"
+                        whileHover={{ scale: 1.05 }}
+                        className="px-3 py-1 text-xs font-semibold text-canva-text bg-white dark:bg-slate-800 border border-canva-secondary/50 rounded-full shadow-sm transition-all"
                       >
                         {tech}
                       </motion.span>
                     ))}
+                    {project.technologies.length > 5 && (
+                      <span className="px-3 py-1 text-xs font-semibold text-gray-400">
+                        +{project.technologies.length - 5} more
+                      </span>
+                    )}
                   </div>
 
-                  {/* Links */}
-                  <div className="flex gap-6 mt-8 pt-4 border-t border-gray-100">
-                    {project.demoUrl && (
-                      <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-canva-text hover:text-canva-primary transition-colors font-semibold group">
-                        <span className="p-2 bg-gray-50 rounded-full group-hover:bg-canva-primary/10 transition-colors"><FaExternalLinkAlt /></span> Live Demo
-                      </a>
-                    )}
-                    {project.repoUrl && (
-                      <a href={project.repoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-canva-text hover:text-canva-primary transition-colors font-semibold group">
-                        <span className="p-2 bg-gray-50 rounded-full group-hover:bg-canva-primary/10 transition-colors"><FaGithub /></span> Source Code
-                      </a>
-                    )}
-                  </div>
+                  {/* Hint text */}
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-4 italic">
+                    {getTranslation('projects.clickToViewDetails')}
+                  </p>
                 </div>
               </motion.div>
             );
           })}
         </div>
       </div>
+
+      {/* Project Modal */}
+      <ProjectModal 
+        project={selectedProject} 
+        isOpen={isModalOpen} 
+        onClose={handleCloseModal} 
+      />
     </section>
   );
 };
