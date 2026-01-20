@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBars, FaTimes } from 'react-icons/fa';
+import { getTranslation } from '../utils/translations';
 
 interface HeaderProps {
     fullName: string;
@@ -51,10 +52,10 @@ const Header: React.FC<HeaderProps> = ({ fullName, hasProjects, hasSkills, hasRe
                     {/* Right Side: Desktop Nav + Mode Switch + Lang Switcher */}
                     <div className="hidden md:flex items-center gap-6">
                         <nav className="flex gap-8">
-                            {hasProjects && <button onClick={() => scrollToSection('projects')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">Projects</button>}
-                            {hasSkills && <button onClick={() => scrollToSection('skills')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">Skills</button>}
-                            {hasResearch && <button onClick={() => scrollToSection('publications')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">Research</button>}
-                            {hasEvents && <button onClick={() => scrollToSection('events')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">Events</button>}
+                            {hasProjects && <button onClick={() => scrollToSection('projects')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">{getTranslation('navigation.projects')}</button>}
+                            {hasSkills && <button onClick={() => scrollToSection('skills')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">{getTranslation('navigation.skills')}</button>}
+                            {hasResearch && <button onClick={() => scrollToSection('publications')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">{getTranslation('navigation.research')}</button>}
+                            {hasEvents && <button onClick={() => scrollToSection('events')} className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-orange-500 transition-all">{getTranslation('navigation.events')}</button>}
                         </nav>
 
                         <div className="h-6 w-px bg-gray-200 dark:bg-slate-700 mx-2" />
@@ -87,10 +88,10 @@ const Header: React.FC<HeaderProps> = ({ fullName, hasProjects, hasSkills, hasRe
             <AnimatePresence>
                 {isMobileMenuOpen && (
                     <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="absolute top-full left-4 right-4 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl rounded-[3rem] shadow-2xl border border-orange-50 dark:border-slate-800 p-8 flex flex-col gap-6 md:hidden">
-                        {hasProjects && <button onClick={() => scrollToSection('projects')} className="text-2xl font-black text-left dark:text-white">Projects</button>}
-                        {hasSkills && <button onClick={() => scrollToSection('skills')} className="text-2xl font-black text-left dark:text-white">Skills</button>}
-                        {hasResearch && <button onClick={() => scrollToSection('publications')} className="text-2xl font-black text-left dark:text-white">Research</button>}
-                        {hasEvents && <button onClick={() => scrollToSection('events')} className="text-2xl font-black text-left dark:text-white">Events</button>}
+                        {hasProjects && <button onClick={() => scrollToSection('projects')} className="text-2xl font-black text-left dark:text-white">{getTranslation('navigation.projects')}</button>}
+                        {hasSkills && <button onClick={() => scrollToSection('skills')} className="text-2xl font-black text-left dark:text-white">{getTranslation('navigation.skills')}</button>}
+                        {hasResearch && <button onClick={() => scrollToSection('publications')} className="text-2xl font-black text-left dark:text-white">{getTranslation('navigation.research')}</button>}
+                        {hasEvents && <button onClick={() => scrollToSection('events')} className="text-2xl font-black text-left dark:text-white">{getTranslation('navigation.events')}</button>}
                         <div className="flex gap-4 pt-6 border-t border-gray-100 dark:border-slate-800 items-center">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Language:</span>
                             <button onClick={() => changeLanguage('vi')} className={`font-black ${lang === 'vi' ? 'text-orange-500' : 'text-gray-300'}`}>VI</button>
