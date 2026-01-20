@@ -3,10 +3,11 @@ import { useParams } from 'react-router-dom'; // <--- MỚI: Import hook lấy t
 import { portfolioService } from '../services/api';
 import { PortfolioData } from '../types';
 import Header from '../components/Header';
+import DarkModeSwitch from '../components/DarkModeSwitch';
 import ZigZagSection from '../components/ZigZagSection';
 import ChatWidget from '../components/ChatWidget';
 import MagneticWrapper from '../components/MagneticWrapper';
-import { motion, useScroll, useSpring, useTransform, Variants } from 'framer-motion';
+import { motion, useScroll, useSpring, useTransform, Variants, AnimatePresence } from 'framer-motion';
 import { FaEnvelope, FaGithub, FaLinkedin, FaDownload, FaExternalLinkAlt, FaAward, FaBookOpen, FaBriefcase, FaGraduationCap, FaTerminal, FaCode, FaRocket, FaFingerprint } from 'react-icons/fa';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -25,6 +26,12 @@ const Home: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [isDark, setIsDark] = useState(false);
+    
+    // State cho phân trang Career Journey
+    const [visibleWorkItems, setVisibleWorkItems] = useState(5);
+    
+    // State cho phân trang Projects
+    const [visibleProjectItems, setVisibleProjectItems] = useState(3);
 
     const stompClient = useRef<Client | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
@@ -59,6 +66,16 @@ const Home: React.FC = () => {
     const toggleDark = () => {
         setIsDark(!isDark);
         document.documentElement.classList.toggle('dark');
+    };
+
+    // Hàm xử lý xem thêm Career Journey
+    const handleShowMoreWork = () => {
+        setVisibleWorkItems(prev => prev + 5);
+    };
+
+    // Hàm xử lý xem thêm Projects
+    const handleShowMoreProjects = () => {
+        setVisibleProjectItems(prev => prev + 3);
     };
 
     const handlePrint = useReactToPrint({
@@ -166,7 +183,7 @@ const Home: React.FC = () => {
                 hasResearch={hasData(data.publications)}
                 hasEvents={hasData(data.events)}
             >
-                {/* <DarkModeSwitch isDark={isDark} toggleDark={toggleDark} /> */}
+                <DarkModeSwitch isDark={isDark} toggleDark={toggleDark} />
             </Header>
 
             {/* 4. HIỂN THỊ BREADCRUMB TỔ CHỨC (MỚI THÊM - STYLE TINH TẾ)
@@ -186,7 +203,7 @@ const Home: React.FC = () => {
 
             {/* ================= HERO SECTION ================= */}
             <section id="hero" className="relative min-h-screen flex items-center justify-center pt-32 pb-20 overflow-hidden px-4 md:px-8">
-                <TechScene />
+                <TechScene isDark={isDark} />
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-soft-light"></div>
 
                 <motion.div
@@ -287,9 +304,18 @@ const Home: React.FC = () => {
                             {/* Áp dụng class tiêu đề mới với hiệu ứng phát sáng */}
                             <h2 className={headingClassName}>{sectionJourney}</h2>
                         </div>
-                        <motion.div className="space-y-6 md:space-y-8" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={containerVariants}>
-                            {data.workHistory.map((work, i) => (
-                                <motion.div key={i} variants={itemVariants} className="relative pl-8 border-l-2 border-gray-200 dark:border-slate-700 group">
+                        <div className="space-y-6 md:space-y-8 px-5">
+                            {data.workHistory.slice(0, visibleWorkItems).map((work, i) => (
+                                <motion.div 
+                                    key={`work-item-${i}`}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ 
+                                        duration: 0.5, 
+                                        delay: i >= 5 ? (i - 5) * 0.1 : 0
+                                    }}
+                                    className="relative pl-8 border-l-2 border-gray-200 dark:border-slate-700 group"
+                                >
                                     <motion.div className="absolute w-4 h-4 bg-orange-400 rounded-full -left-[9px] top-2 transition-all duration-300 group-hover:scale-150 group-hover:bg-blue-500 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                                         <div>
@@ -301,11 +327,38 @@ const Home: React.FC = () => {
                                             {work.startDate} — {work.endDate}
                                         </span>
                                     </div>
-                                    {/* Nội dung: Xám rất sáng để dễ đọc */}
-                                    <p className="text-slate-600 dark:text-slate-200 leading-relaxed max-w-3xl whitespace-pre-wrap font-medium">{work.description}</p>
+                                    {/* Nội dung: Xám rất sáng để dễ đọc, căn đều 2 bên */}
+                                    <p className="text-slate-600 dark:text-slate-200 leading-relaxed max-w-3xl whitespace-pre-wrap font-medium text-justify">{work.description}</p>
                                 </motion.div>
                             ))}
-                        </motion.div>
+                        </div>
+                        
+                        {/* Nút "Xem thêm" */}
+                        {visibleWorkItems < data.workHistory.length && (
+                            <div className="flex justify-center mt-8 md:mt-12">
+                                <motion.button
+                                    onClick={handleShowMoreWork}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="px-8 py-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-orange-200 dark:border-slate-700 rounded-full font-bold text-slate-800 dark:text-slate-200 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all duration-300 shadow-lg flex items-center gap-3"
+                                >
+                                    <span>Xem thêm</span>
+                                    <motion.div
+                                        animate={{ y: [0, 3, 0] }}
+                                        transition={{ duration: 1.5, repeat: Infinity }}
+                                    >
+                                        ↓
+                                    </motion.div>
+                                </motion.button>
+                            </div>
+                        )}
+                        
+                        {/* Hiển thị số lượng hiện tại */}
+                        <div className="text-center mt-4">
+                            <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
+                                Hiển thị {Math.min(visibleWorkItems, data.workHistory.length)} / {data.workHistory.length} kinh nghiệm
+                            </span>
+                        </div>
                     </div>
                 </section>
             )}
@@ -317,7 +370,12 @@ const Home: React.FC = () => {
                         {/* Áp dụng class tiêu đề mới */}
                         <h2 className={headingClassName}>{sectionWorkSelection}</h2>
                     </div>
-                    <ZigZagSection projects={data.projects} />
+                    <ZigZagSection 
+                        projects={data.projects} 
+                        visibleCount={visibleProjectItems}
+                        onShowMore={handleShowMoreProjects}
+                        hasMore={visibleProjectItems < data.projects.length}
+                    />
                 </section>
             )}
 
