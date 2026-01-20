@@ -46,7 +46,7 @@ const Header: React.FC<HeaderProps> = ({ fullName, hasProjects, hasSkills, hasRe
 
                     {/* Logo */}
                     <div className="text-2xl font-black bg-gradient-to-r from-orange-400 to-pink-500 bg-clip-text text-transparent cursor-pointer tracking-tighter" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                        {fullName.split(' ').pop()?.toUpperCase()}.
+                        {fullName.toUpperCase()}.
                     </div>
 
                     {/* Right Side: Desktop Nav + Mode Switch + Lang Switcher */}
