@@ -16,7 +16,7 @@ module.exports = {
         'canva-gray': '#888888'      // Light Gray
       },
       fontFamily: {
-        sans: ['Poppins', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
       },
       boxShadow: {
         'soft': '0 4px 20px rgba(0, 0, 0, 0.05)',

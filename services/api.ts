@@ -60,8 +60,11 @@ const mapBackendToFrontend = (data: any): PortfolioData => {
       gallery: p.gallery || [],
       technologies: p.techStack ? p.techStack.split(',').map((s: string) => s.trim()) : [],
       repoUrl: p.sourceCodeUrl,
+      sourceUrl: p.sourceCodeUrl, // Alias
+      demoUrl: p.demoUrl,
       role: p.role || p.roleVi || p.roleEn,
-      customer: p.customer
+      customer: p.customer,
+      teamMembers: p.teamMembers ? (Array.isArray(p.teamMembers) ? p.teamMembers : p.teamMembers.split(',').map((m: string) => m.trim())) : undefined
     })) : [],
     workHistory: Array.isArray(data.workHistory) ? data.workHistory.map((w: any) => ({
       id: w.id,

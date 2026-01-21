@@ -3,16 +3,18 @@ import { useParams } from 'react-router-dom'; // <--- MỚI: Import hook lấy t
 import { portfolioService } from '../services/api';
 import { PortfolioData } from '../types';
 import Header from '../components/Header';
+import DarkModeSwitch from '../components/DarkModeSwitch';
 import ZigZagSection from '../components/ZigZagSection';
 import ChatWidget from '../components/ChatWidget';
 import MagneticWrapper from '../components/MagneticWrapper';
-import { motion, useScroll, useSpring, useTransform, Variants } from 'framer-motion';
+import { motion, useScroll, useSpring, useTransform, Variants, AnimatePresence } from 'framer-motion';
 import { FaEnvelope, FaGithub, FaLinkedin, FaDownload, FaExternalLinkAlt, FaAward, FaBookOpen, FaBriefcase, FaGraduationCap, FaTerminal, FaCode, FaRocket, FaFingerprint } from 'react-icons/fa';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { useReactToPrint } from 'react-to-print';
 import PortfolioPrintTemplate from '../components/PortfolioPrintTemplate';
 import { TechScene } from '@/components/TechScene';
+import { getTranslation } from '../utils/translations';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -24,6 +26,12 @@ const Home: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const [isDark, setIsDark] = useState(false);
+    
+    // State cho phân trang Career Journey
+    const [visibleWorkItems, setVisibleWorkItems] = useState(5);
+    
+    // State cho phân trang Projects
+    const [visibleProjectItems, setVisibleProjectItems] = useState(3);
 
     const stompClient = useRef<Client | null>(null);
     const printRef = useRef<HTMLDivElement>(null);
@@ -58,6 +66,16 @@ const Home: React.FC = () => {
     const toggleDark = () => {
         setIsDark(!isDark);
         document.documentElement.classList.toggle('dark');
+    };
+
+    // Hàm xử lý xem thêm Career Journey
+    const handleShowMoreWork = () => {
+        setVisibleWorkItems(prev => prev + 5);
+    };
+
+    // Hàm xử lý xem thêm Projects
+    const handleShowMoreProjects = () => {
+        setVisibleProjectItems(prev => prev + 3);
     };
 
     const handlePrint = useReactToPrint({
@@ -138,6 +156,17 @@ const Home: React.FC = () => {
     const hasData = (arr: any) => arr && arr.length > 0;
 
     const headingClassName = "text-5xl md:text-7xl font-black tracking-tighter uppercase text-slate-900 dark:text-white dark:drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]";
+    
+    // Get translations based on current language
+    const systemOnline = getTranslation('hero.systemOnline');
+    const heroTitle = getTranslation('hero.title');
+    const heroSubtitle = getTranslation('hero.subtitle');
+    const sectionJourney = getTranslation('sections.journey');
+    const sectionWorkSelection = getTranslation('sections.workSelection');
+    const sectionEducation = getTranslation('sections.education');
+    const sectionMyArsenal = getTranslation('sections.myArsenal');
+    const sectionResearch = getTranslation('sections.research');
+    const sectionRecognitions = getTranslation('sections.recognitions');
 
     return (
         <div className={`min-h-screen font-sans transition-colors duration-700 selection:bg-orange-500 selection:text-white ${isDark ? 'bg-black text-slate-200' : 'bg-slate-50 text-[#1a1a1a]'
@@ -154,7 +183,7 @@ const Home: React.FC = () => {
                 hasResearch={hasData(data.publications)}
                 hasEvents={hasData(data.events)}
             >
-                {/* <DarkModeSwitch isDark={isDark} toggleDark={toggleDark} /> */}
+                <DarkModeSwitch isDark={isDark} toggleDark={toggleDark} />
             </Header>
 
             {/* 4. HIỂN THỊ BREADCRUMB TỔ CHỨC (MỚI THÊM - STYLE TINH TẾ)
@@ -174,7 +203,7 @@ const Home: React.FC = () => {
 
             {/* ================= HERO SECTION ================= */}
             <section id="hero" className="relative min-h-screen flex items-center justify-center pt-32 pb-20 overflow-hidden px-4 md:px-8">
-                <TechScene />
+                <TechScene isDark={isDark} />
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-soft-light"></div>
 
                 <motion.div
@@ -193,12 +222,12 @@ const Home: React.FC = () => {
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                                 </span>
-                                <span className="font-mono text-xs text-orange-600 dark:text-orange-400 tracking-widest uppercase">System Online • Ready to Deploy</span>
+                                <span className="font-mono text-xs text-orange-600 dark:text-orange-400 tracking-widest uppercase">{systemOnline}</span>
                             </div>
                             <h1 className="text-5xl md:text-7xl xl:text-8xl font-black tracking-tighter leading-[0.9] mb-6 text-slate-900 dark:text-white">
-                                ENGINEERING <br />
+                                {heroTitle} <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 animate-gradient-x">
-                                    PERFECTION.
+                                    {heroSubtitle}
                                 </span>
                             </h1>
                             <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl font-medium leading-relaxed mb-10">
@@ -268,16 +297,25 @@ const Home: React.FC = () => {
 
             {/* ================= JOURNEY SECTION ================= */}
             {hasData(data.workHistory) && (
-                <section id="experience" className="py-32 scroll-mt-20 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl border-y border-orange-50 dark:border-slate-800">
+                <section id="experience" className="py-16 md:py-20 scroll-mt-20 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl border-y border-orange-50 dark:border-slate-800">
                     <div className="container mx-auto px-6">
-                        <div className="flex items-center gap-6 mb-16">
+                        <div className="flex items-center gap-6 mb-8 md:mb-10">
                             <FaBriefcase className="text-4xl text-blue-400" />
                             {/* Áp dụng class tiêu đề mới với hiệu ứng phát sáng */}
-                            <h2 className={headingClassName}>Journey</h2>
+                            <h2 className={headingClassName}>{sectionJourney}</h2>
                         </div>
-                        <motion.div className="space-y-12" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={containerVariants}>
-                            {data.workHistory.map((work, i) => (
-                                <motion.div key={i} variants={itemVariants} className="relative pl-8 border-l-2 border-gray-200 dark:border-slate-700 group">
+                        <div className="space-y-6 md:space-y-8 px-5">
+                            {data.workHistory.slice(0, visibleWorkItems).map((work, i) => (
+                                <motion.div 
+                                    key={`work-item-${i}`}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ 
+                                        duration: 0.5, 
+                                        delay: i >= 5 ? (i - 5) * 0.1 : 0
+                                    }}
+                                    className="relative pl-8 border-l-2 border-gray-200 dark:border-slate-700 group"
+                                >
                                     <motion.div className="absolute w-4 h-4 bg-orange-400 rounded-full -left-[9px] top-2 transition-all duration-300 group-hover:scale-150 group-hover:bg-blue-500 group-hover:shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                                         <div>
@@ -289,38 +327,70 @@ const Home: React.FC = () => {
                                             {work.startDate} — {work.endDate}
                                         </span>
                                     </div>
-                                    {/* Nội dung: Xám rất sáng để dễ đọc */}
-                                    <p className="text-slate-600 dark:text-slate-200 leading-relaxed max-w-3xl whitespace-pre-wrap font-medium">{work.description}</p>
+                                    {/* Nội dung: Xám rất sáng để dễ đọc, căn đều 2 bên */}
+                                    <p className="text-slate-600 dark:text-slate-200 leading-relaxed max-w-3xl whitespace-pre-wrap font-medium text-justify">{work.description}</p>
                                 </motion.div>
                             ))}
-                        </motion.div>
+                        </div>
+                        
+                        {/* Nút "Xem thêm" */}
+                        {visibleWorkItems < data.workHistory.length && (
+                            <div className="flex justify-center mt-8 md:mt-12">
+                                <motion.button
+                                    onClick={handleShowMoreWork}
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    className="px-8 py-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-orange-200 dark:border-slate-700 rounded-full font-bold text-slate-800 dark:text-slate-200 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all duration-300 shadow-lg flex items-center gap-3"
+                                >
+                                    <span>Xem thêm</span>
+                                    <motion.div
+                                        animate={{ y: [0, 3, 0] }}
+                                        transition={{ duration: 1.5, repeat: Infinity }}
+                                    >
+                                        ↓
+                                    </motion.div>
+                                </motion.button>
+                            </div>
+                        )}
+                        
+                        {/* Hiển thị số lượng hiện tại */}
+                        <div className="text-center mt-4">
+                            <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
+                                Hiển thị {Math.min(visibleWorkItems, data.workHistory.length)} / {data.workHistory.length} kinh nghiệm
+                            </span>
+                        </div>
                     </div>
                 </section>
             )}
 
             {/* ================= PROJECTS SECTION ================= */}
             {hasData(data.projects) && (
-                <section id="projects" className="py-32 scroll-mt-20">
-                    <div className="container mx-auto px-6 text-center mb-24">
+                <section id="projects" className="py-16 md:py-20 scroll-mt-20">
+                    <div className="container mx-auto px-6 text-center mb-10 md:mb-12">
                         {/* Áp dụng class tiêu đề mới */}
-                        <h2 className={headingClassName}>Work Selection</h2>
+                        <h2 className={headingClassName}>{sectionWorkSelection}</h2>
                     </div>
-                    <ZigZagSection projects={data.projects} />
+                    <ZigZagSection 
+                        projects={data.projects} 
+                        visibleCount={visibleProjectItems}
+                        onShowMore={handleShowMoreProjects}
+                        hasMore={visibleProjectItems < data.projects.length}
+                    />
                 </section>
             )}
 
             {/* ================= EDUCATION SECTION ================= */}
             {hasData(data.education) && (
-                <section id="education" className="py-32 bg-slate-100 dark:bg-slate-900/80 rounded-[5rem] mx-4 scroll-mt-20 border border-white/20">
+                <section id="education" className="py-16 md:py-20 bg-slate-100 dark:bg-slate-900/80 rounded-[5rem] mx-4 scroll-mt-20 border border-white/20">
                     <div className="container mx-auto px-6">
-                        <div className="flex items-center gap-6 mb-20">
+                        <div className="flex items-center gap-6 mb-8 md:mb-10">
                             <FaGraduationCap className="text-4xl text-purple-400" />
                             {/* Áp dụng class tiêu đề mới */}
-                            <h2 className={headingClassName}>Education</h2>
+                            <h2 className={headingClassName}>{sectionEducation}</h2>
                         </div>
-                        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-8" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
+                        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
                             {data.education.map((edu, i) => (
-                                <motion.div key={i} variants={itemVariants} whileHover={{ y: -5, borderColor: "rgba(249, 115, 22, 0.5)" }} className="p-10 bg-white dark:bg-slate-800 rounded-[3rem] shadow-sm border border-gray-100 dark:border-slate-700 transition-colors">
+                                <motion.div key={i} variants={itemVariants} whileHover={{ y: -5, borderColor: "rgba(249, 115, 22, 0.5)" }} className="p-6 md:p-8 bg-white dark:bg-slate-800 rounded-[3rem] shadow-sm border border-gray-100 dark:border-slate-700 transition-colors">
                                     <span className="text-xs font-black text-gray-400 uppercase tracking-widest">{edu.year}</span>
                                     {/* Bằng cấp: Trắng tinh */}
                                     <h3 className="text-2xl font-black mt-4 mb-2 uppercase text-slate-900 dark:text-white">{edu.degree}</h3>
@@ -336,13 +406,13 @@ const Home: React.FC = () => {
 
             {/* ================= SKILLS SECTION ================= */}
             {hasData(data.skills) && (
-                <section id="skills" className="py-32 bg-transparent scroll-mt-20">
+                <section id="skills" className="py-16 md:py-20 bg-transparent scroll-mt-20">
                     <div className="container mx-auto px-6">
                         {/* Áp dụng class tiêu đề mới */}
-                        <h2 className={`${headingClassName} mb-20`}>My Arsenal</h2>
-                        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-10" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
+                        <h2 className={`${headingClassName} mb-8 md:mb-10`}>{sectionMyArsenal}</h2>
+                        <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
                             {data.skills.map((skill, index) => (
-                                <motion.div key={index} variants={itemVariants} whileHover={{ y: -10, scale: 1.02 }} className="p-10 bg-white/50 dark:bg-white/5 backdrop-blur-md rounded-[3rem] border border-orange-50 dark:border-white/10 transition-all shadow-sm hover:shadow-2xl hover:shadow-orange-500/10">
+                                <motion.div key={index} variants={itemVariants} whileHover={{ y: -10, scale: 1.02 }} className="p-6 md:p-8 bg-white/50 dark:bg-white/5 backdrop-blur-md rounded-[3rem] border border-orange-50 dark:border-white/10 transition-all shadow-sm hover:shadow-2xl hover:shadow-orange-500/10">
                                     {/* Tên kỹ năng: Trắng tinh */}
                                     <h3 className="text-sm font-black uppercase tracking-widest mb-4 text-slate-800 dark:text-white">{skill.name}</h3>
                                     <div className="h-2 w-full bg-white dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
@@ -357,13 +427,13 @@ const Home: React.FC = () => {
 
             {/* ================= PUBLICATIONS SECTION ================= */}
             {hasData(data.publications) && (
-                <section id="publications" className="py-32 scroll-mt-20 bg-slate-950 text-white rounded-[5rem] mx-4">
+                <section id="publications" className="py-16 md:py-20 scroll-mt-20 bg-slate-950 text-white rounded-[5rem] mx-4">
                     <div className="container mx-auto px-6 max-w-4xl">
-                        <div className="flex items-center gap-6 mb-16">
+                        <div className="flex items-center gap-6 mb-8 md:mb-10">
                             <FaBookOpen className="text-4xl text-orange-400" />
-                            <h2 className="text-5xl font-black tracking-tighter">Research</h2>
+                            <h2 className="text-5xl font-black tracking-tighter">{sectionResearch}</h2>
                         </div>
-                        <motion.div className="space-y-6" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
+                        <motion.div className="space-y-4 md:space-y-5" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
                             {data.publications?.map((pub, i) => (
                                 <motion.div key={i} variants={itemVariants} whileHover={{ x: 10, backgroundColor: "rgba(255,255,255,0.1)" }} className="p-8 bg-white/5 backdrop-blur-md rounded-3xl border border-white/10 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 transition-all">
                                     <div className="flex-1 text-center md:text-left">
@@ -382,16 +452,16 @@ const Home: React.FC = () => {
 
             {/* ================= EVENTS SECTION ================= */}
             {hasData(data.events) && (
-                <section id="events" className="py-32 scroll-mt-20">
+                <section id="events" className="py-16 md:py-20 scroll-mt-20">
                     <div className="container mx-auto px-6">
-                        <div className="text-center mb-24">
+                        <div className="text-center mb-8 md:mb-10">
                             {/* Áp dụng class tiêu đề mới */}
-                            <h2 className={`${headingClassName} italic`}>Recognitions</h2>
+                            <h2 className={`${headingClassName} italic`}>{sectionRecognitions}</h2>
                         </div>
-                        <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
+                        <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
                             {data.events?.map((event, i) => (
-                                <motion.div key={i} variants={itemVariants} whileHover={{ y: -10, rotate: 1 }} className="p-12 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-orange-100 dark:border-white/5 rounded-[4rem] group flex flex-col items-center text-center shadow-sm hover:border-orange-400/50 transition-colors">
-                                    <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] shadow-xl flex items-center justify-center text-3xl text-orange-400 mb-10 group-hover:rotate-12 transition-transform">
+                                <motion.div key={i} variants={itemVariants} whileHover={{ y: -10, rotate: 1 }} className="p-6 md:p-8 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl border border-orange-100 dark:border-white/5 rounded-[4rem] group flex flex-col items-center text-center shadow-sm hover:border-orange-400/50 transition-colors">
+                                    <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-[2rem] shadow-xl flex items-center justify-center text-3xl text-orange-400 mb-4 md:mb-6 group-hover:rotate-12 transition-transform">
                                         <FaAward />
                                     </div>
                                     {/* Tên giải thưởng: Trắng tinh */}
@@ -406,12 +476,12 @@ const Home: React.FC = () => {
                 </section>
             )}
 
-            <footer className="relative pt-40 pb-16 bg-white dark:bg-slate-900 rounded-t-[5rem] shadow-2xl border-t border-orange-50 dark:border-slate-800 overflow-hidden transition-colors">
+            <footer className="relative pt-20 md:pt-24 pb-12 md:pb-16 bg-white dark:bg-slate-900 rounded-t-[5rem] shadow-2xl border-t border-orange-50 dark:border-slate-800 overflow-hidden transition-colors">
                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 -z-0" />
                 <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 -z-0" />
 
                 <div className="container mx-auto px-6 relative z-10">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-16 mb-32">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 md:gap-12 mb-12 md:mb-16">
                         <div className="space-y-6">
                             <h2 className="text-6xl md:text-8xl font-black tracking-[0.02em] leading-none uppercase text-slate-900 dark:text-white">
                                 Let's <br /> connect.
