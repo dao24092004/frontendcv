@@ -52,6 +52,7 @@ export interface Education {
 export interface PortfolioData {
   id?: number;
   fullName: string;
+  title?: string;
   jobTitle: string;
   bio: string;
   avatarUrl: string;

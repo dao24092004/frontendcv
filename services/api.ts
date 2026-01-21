@@ -12,6 +12,12 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const lang = localStorage.getItem('app_lang') || 'vi';
   config.headers['Accept-Language'] = lang;
+
+  // Tự động gửi token nếu có
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
   return config;
 });
 
@@ -26,6 +32,7 @@ const mapBackendToFrontend = (data: any): PortfolioData => {
   return {
     id: data.id,
     fullName: data.fullName,
+    title: data.title,
     jobTitle: data.jobTitle,
     bio: data.bio,
     avatarUrl: resolveImageUrl(data.avatarUrl),
@@ -116,7 +123,6 @@ export const portfolioService = {
     const response = await api.get(`/view/code/${rCode}/${lCode}/${dCode}/${pid}`);
     return mapBackendToFrontend(response.data);
   },
-  // New flexible methods for different hierarchy levels
   getPortfolioByRegion: async (regionCode: string, pid: number): Promise<PortfolioData> => {
     const response = await api.get(`/view/${regionCode}/${pid}`);
     return mapBackendToFrontend(response.data);
@@ -142,7 +148,6 @@ export const adminService = {
   getAllProfiles: async () => (await api.get('/admin/list')).data,
 
   updateProfile: async (data: any) => {
-    // API update profile chấp nhận cả các field cũ và departmentId
     return api.put('/admin/profile', data);
   },
 
@@ -154,77 +159,110 @@ export const adminService = {
   },
   getProjectDetail: (id: number) => api.get(`/admin/projects/${id}`),
 
-  // ============================================================
-  // QUẢN LÝ TỔ CHỨC (ORGANIZATION) - FULL CRUD
-  // ============================================================
-
-  // 1. REGION (Vùng)
+  // Organization CRUD
   getRegions: async () => (await api.get<Region[]>('/org/regions')).data,
   createRegion: async (data: { name: string; code: string }) => api.post('/org/regions', data),
   updateRegion: async (id: number, data: { name: string; code: string }) => api.put(`/org/regions/${id}`, data),
   deleteRegion: async (id: number) => api.delete(`/org/regions/${id}`),
 
-  // 2. LOCAL ORG (Chi nhánh)
   getLocals: async () => (await api.get<LocalOrg[]>('/org/locals')).data,
   createLocal: async (data: { name: string; code: string; regionId: number }) => api.post('/org/locals', data),
   updateLocal: async (id: number, data: { name: string; code: string; regionId: number }) => api.put(`/org/locals/${id}`, data),
   deleteLocal: async (id: number) => api.delete(`/org/locals/${id}`),
 
-  // 3. DEPARTMENT (Phòng ban)
   getDepartments: async () => (await api.get<Department[]>('/org/departments')).data,
   createDepartment: async (data: { name: string; code: string; localOrgId: number }) => api.post('/org/departments', data),
   updateDepartment: async (id: number, data: { name: string; code: string; localOrgId: number }) => api.put(`/org/departments/${id}`, data),
   deleteDepartment: async (id: number) => api.delete(`/org/departments/${id}`),
 
-  // 4. GÁN USER VÀO TỔ CHỨC (FLEXIBLE LEVELS)
   assignUserToOrg: async (profileId: number, departmentId?: number, localOrgId?: number, regionId?: number) => {
     const payload: any = { id: profileId };
-    
-    // Assign to the most specific level available
-    if (departmentId) {
-      payload.departmentId = departmentId;
-    } else if (localOrgId) {
-      payload.localOrgId = localOrgId;
-    } else if (regionId) {
-      payload.regionId = regionId;
-    }
-    
+    if (departmentId) payload.departmentId = departmentId;
+    else if (localOrgId) payload.localOrgId = localOrgId;
+    else if (regionId) payload.regionId = regionId;
     return api.put('/admin/profile', payload);
   },
 
-  // ============================================================
-  // CÁC MODULE KHÁC - GIỮ NGUYÊN
-  // ============================================================
-
-  // Projects
+  // Sub-entities CRUD
   createProject: async (project: Project, profileId: number) => api.post('/admin/projects', { ...project, profileId }),
   updateProject: async (project: Project, profileId: number) => api.put(`/admin/projects/${project.id}`, { ...project, id: project.id, profileId }),
   deleteProject: (id: number) => api.delete(`/admin/projects/${id}`),
 
-  // Skills
   addSkill: (skill: Skill, profileId: number) => api.post('/admin/skills', { ...skill, profileId }),
   updateSkill: (skill: Skill, profileId: number) => api.put(`/admin/skills/${skill.id}`, { ...skill, id: skill.id, profileId }),
   deleteSkill: (id: number) => api.delete(`/admin/skills/${id}`),
 
-  // Experiences
   addExperience: (exp: WorkExperience, profileId: number) => api.post('/admin/experiences', { ...exp, profileId }),
   updateExperience: (exp: WorkExperience, profileId: number) => api.put(`/admin/experiences/${exp.id}`, { ...exp, id: exp.id, profileId }),
   deleteExperience: (id: number) => api.delete(`/admin/experiences/${id}`),
 
-  // Education
   addEducation: (edu: any, profileId: number) => api.post('/admin/educations', { ...edu, profileId }),
   updateEducation: (edu: any, profileId: number) => api.put(`/admin/educations/${edu.id}`, { ...edu, id: edu.id, profileId }),
   deleteEducation: (id: number) => api.delete(`/admin/educations/${id}`),
 
-  // Publications
   addPublication: (pub: any, profileId: number) => api.post('/admin/publications', { ...pub, profileId }),
   updatePublication: (pub: any, profileId: number) => api.put(`/admin/publications/${pub.id}`, { ...pub, id: pub.id, profileId }),
   deletePublication: (id: number) => api.delete(`/admin/publications/${id}`),
 
-  // Events
   addEvent: (evt: any, profileId: number) => api.post('/admin/events', { ...evt, profileId }),
   updateEvent: (evt: any, profileId: number) => api.put(`/admin/events/${evt.id}`, { ...evt, id: evt.id, profileId }),
   deleteEvent: (id: number) => api.delete(`/admin/events/${id}`),
+};
+
+export const userService = {
+  // 1. GET DETAIL BY ID
+  getProject: (id: number) => api.get(`/user/projects/${id}`),
+  getSkill: (id: number) => api.get(`/user/skills/${id}`),
+  getExperience: (id: number) => api.get(`/user/experiences/${id}`),
+  getEducation: (id: number) => api.get(`/user/educations/${id}`),
+  getPublication: (id: number) => api.get(`/user/publications/${id}`),
+  getEvent: (id: number) => api.get(`/user/events/${id}`),
+
+  // 2. CRUD CHO USER
+  updateProfile: (data: any) => api.put('/user/profile', data),
+
+  addProject: (project: Project) => api.post('/user/projects', project),
+  updateProject: (id: number, project: Project) => api.put(`/user/projects/${id}`, project),
+  deleteProject: (id: number) => api.delete(`/user/projects/${id}`),
+
+  addSkill: (skill: Skill) => api.post('/user/skills', skill),
+  deleteSkill: (id: number) => api.delete(`/user/skills/${id}`),
+
+  addExperience: (exp: WorkExperience) => api.post('/user/experiences', exp),
+  deleteExperience: (id: number) => api.delete(`/user/experiences/${id}`),
+
+  addEducation: (edu: any) => api.post('/user/educations', edu),
+  deleteEducation: (id: number) => api.delete(`/user/educations/${id}`),
+
+  addPublication: (pub: any) => api.post('/user/publications', pub),
+  deletePublication: (id: number) => api.delete(`/user/publications/${id}`),
+
+  addEvent: (evt: any) => api.post('/user/events', evt),
+  deleteEvent: (id: number) => api.delete(`/user/events/${id}`),
+
+  importCV: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/user/import-cv', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
+
+  // -----------------------------------------------------------
+  // 🔥 FIX QUAN TRỌNG: Xử lý mảng trả về từ Backend
+  // -----------------------------------------------------------
+  getMyProfile: async (): Promise<PortfolioData> => {
+    const response = await api.get('/user/profile');
+
+    // Nếu backend trả về mảng (List<PortfolioDTO>), lấy phần tử đầu tiên
+    if (Array.isArray(response.data) && response.data.length > 0) {
+      return mapBackendToFrontend(response.data[0]);
+    }
+
+    // Fallback nếu backend trả về object
+    return mapBackendToFrontend(response.data);
+  },
+
+  getProfileDetail: (id: number) => api.get(`/user/portfolio/${id}`),
+  activateProfile: (id: number) => api.post(`/user/profile/${id}/activate`)
 };
 
 export default api;
