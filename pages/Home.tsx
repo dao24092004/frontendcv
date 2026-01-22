@@ -25,7 +25,10 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  
+
+  // State để trigger re-render khi đổi ngôn ngữ
+  const [lang, setLang] = useState(localStorage.getItem('app_lang') || 'vi');
+
   const [visibleWorkItems, setVisibleWorkItems] = useState(5);
   const [visibleProjectItems, setVisibleProjectItems] = useState(3);
 
@@ -78,7 +81,7 @@ const Home: React.FC = () => {
     try {
       let result: PortfolioData;
       const params = [rCode, lCode, dCode].filter(Boolean);
-      
+
       if (id && params.length === 3) {
         result = await portfolioService.getPortfolioByHierarchyCodes(rCode!, lCode!, dCode!, Number(id));
       } else if (id && params.length === 2) {
@@ -113,7 +116,19 @@ const Home: React.FC = () => {
     });
     client.activate();
     stompClient.current = client;
-    return () => { if (stompClient.current) stompClient.current.deactivate(); };
+
+    // Lắng nghe sự kiện đổi ngôn ngữ
+    const handleStorageChange = () => {
+      setLang(localStorage.getItem('app_lang') || 'vi');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('languageChanged', handleStorageChange);
+
+    return () => {
+      if (stompClient.current) stompClient.current.deactivate();
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('languageChanged', handleStorageChange);
+    };
   }, [id, rCode, lCode, dCode]);
 
   if (loading) return (
@@ -130,10 +145,29 @@ const Home: React.FC = () => {
   const hasData = (arr: any) => arr && arr.length > 0;
 
   const headingClassName = "text-5xl md:text-7xl font-black tracking-tighter uppercase text-slate-900 dark:text-white dark:drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]";
-  
+
+  // ==================================================================================
+  // 🔥 XỬ LÝ TÁCH CHUỖI TITLE | SUBTITLE 🔥
+  // ==================================================================================
+  const currentLang = localStorage.getItem('app_lang') || 'vi';
+
+  // 1. Lấy chuỗi thô từ DB dựa trên ngôn ngữ (hoặc dùng mặc định nếu DB rỗng)
+  // Mặc định: "ENGINEERING | PERFECTION."
+  const rawTitle = currentLang === 'vi'
+    ? (data.titleVi || "XIN CHÀO | CÁC BẠN")
+    : (data.titleEn || "ENGINEERING | PERFECTION");
+
+  // 2. Tách chuỗi bằng dấu gạch đứng "|"
+  // Nếu nhập "Dòng 1 | Dòng 2" -> parts = ["Dòng 1", "Dòng 2"]
+  // Nếu nhập "Chỉ một dòng" -> parts = ["Chỉ một dòng"]
+  const parts = rawTitle.includes('|')
+    ? rawTitle.split('|')
+    : [rawTitle];
+
+  const displayTitleLine1 = parts[0].trim(); // Dòng chữ trắng to
+  const displayTitleLine2 = parts[1] ? parts[1].trim() : ""; // Dòng chữ gradient (nếu có)
+
   const systemOnline = getTranslation('hero.systemOnline');
-  const heroTitle = getTranslation('hero.title');
-  const heroSubtitle = getTranslation('hero.subtitle');
   const sectionJourney = getTranslation('sections.journey');
   const sectionWorkSelection = getTranslation('sections.workSelection');
   const sectionEducation = getTranslation('sections.education');
@@ -161,7 +195,6 @@ const Home: React.FC = () => {
       <motion.div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 origin-left z-[110]" style={{ scaleX }} />
 
       {/* ================= HERO SECTION ================= */}
-      {/* Đã giảm pt từ 24 xuống 20 và pb từ 10 xuống 2 */}
       <section id="hero" className="relative min-h-screen flex items-center justify-center pt-20 pb-2 overflow-hidden px-4 md:px-8">
         <TechScene isDark={isDark} />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-soft-light"></div>
@@ -184,12 +217,19 @@ const Home: React.FC = () => {
                 </span>
                 <span className="font-mono text-xs text-orange-600 dark:text-orange-400 tracking-widest uppercase">{systemOnline}</span>
               </div>
-              <h1 className="text-5xl md:text-7xl xl:text-8xl font-black tracking-tighter leading-[0.9] mb-4 text-slate-900 dark:text-white">
-                {heroTitle} <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 animate-gradient-x">
-                  {heroSubtitle}
-                </span>
+
+              {/* --- HIỂN THỊ TIÊU ĐỀ ĐÃ TÁCH --- */}
+              <h1 className="text-5xl md:text-7xl xl:text-8xl font-black tracking-tighter leading-[0.9] mb-4 text-slate-900 dark:text-white uppercase">
+                {displayTitleLine1} <br />
+                {/* Chỉ hiển thị dòng 2 nếu có nội dung */}
+                {displayTitleLine2 && (
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 animate-gradient-x">
+                    {displayTitleLine2}
+                  </span>
+                )}
               </h1>
+              {/* ---------------------------------- */}
+
               <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl font-medium leading-relaxed mb-8">
                 "{data.bio}"
               </p>
@@ -257,7 +297,6 @@ const Home: React.FC = () => {
 
       {/* ================= JOURNEY SECTION ================= */}
       {hasData(data.workHistory) && (
-        // Rút gọn khoảng cách: py-4 md:py-8 (giảm mạnh từ py-8 md:py-10)
         <section id="experience" className="py-4 md:py-8 scroll-mt-20 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl border-y border-orange-50 dark:border-slate-800">
           <div className="container mx-auto px-6">
             <div className="flex items-center gap-4 mb-6">
@@ -266,7 +305,7 @@ const Home: React.FC = () => {
             </div>
             <div className="space-y-6 md:space-y-8 px-5">
               {data.workHistory.slice(0, visibleWorkItems).map((work, i) => (
-                <motion.div 
+                <motion.div
                   key={`work-item-${i}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -287,9 +326,8 @@ const Home: React.FC = () => {
                 </motion.div>
               ))}
             </div>
-            
+
             {visibleWorkItems < data.workHistory.length && (
-              // Giảm margin top của nút: mt-6 (từ mt-8/10)
               <div className="flex justify-center mt-6">
                 <motion.button
                   onClick={handleShowMoreWork}
@@ -302,7 +340,7 @@ const Home: React.FC = () => {
                 </motion.button>
               </div>
             )}
-            
+
             <div className="text-center mt-2">
               <span className="text-[10px] md:text-xs font-mono text-slate-400 dark:text-slate-500">
                 Hiển thị {Math.min(visibleWorkItems, data.workHistory.length)} / {data.workHistory.length} kinh nghiệm
@@ -314,14 +352,12 @@ const Home: React.FC = () => {
 
       {/* ================= PROJECTS SECTION ================= */}
       {hasData(data.projects) && (
-        // GIẢM MẠNH PADDING: py-2 (gần như sát phần trên)
         <section id="projects" className="py-2 scroll-mt-20">
-          {/* Giảm margin bottom của tiêu đề: mb-2 */}
           <div className="container mx-auto px-6 text-center mb-2">
             <h2 className={headingClassName}>{sectionWorkSelection}</h2>
           </div>
-          <ZigZagSection 
-            projects={data.projects} 
+          <ZigZagSection
+            projects={data.projects}
             visibleCount={visibleProjectItems}
             onShowMore={handleShowMoreProjects}
             hasMore={visibleProjectItems < data.projects.length}
@@ -331,7 +367,6 @@ const Home: React.FC = () => {
 
       {/* ================= EDUCATION SECTION ================= */}
       {hasData(data.education) && (
-        // Rút gọn padding: py-6 md:py-10 (từ py-8 md:py-12)
         <section id="education" className="py-6 md:py-10 bg-slate-100 dark:bg-slate-900/80 rounded-[3rem] mx-4 scroll-mt-20 border border-white/20">
           <div className="container mx-auto px-6">
             <div className="flex items-center gap-4 mb-6">
@@ -354,7 +389,6 @@ const Home: React.FC = () => {
 
       {/* ================= SKILLS SECTION ================= */}
       {hasData(data.skills) && (
-        // Rút gọn padding: py-6 md:py-10
         <section id="skills" className="py-6 md:py-10 bg-transparent scroll-mt-20">
           <div className="container mx-auto px-6">
             <h2 className={`${headingClassName} mb-6`}>{sectionMyArsenal}</h2>
@@ -374,7 +408,6 @@ const Home: React.FC = () => {
 
       {/* ================= PUBLICATIONS SECTION ================= */}
       {hasData(data.publications) && (
-        // Rút gọn padding: py-6 md:py-10
         <section id="publications" className="py-6 md:py-10 scroll-mt-20 bg-slate-950 text-white rounded-[3rem] mx-4">
           <div className="container mx-auto px-6 max-w-4xl">
             <div className="flex items-center gap-4 mb-6">
@@ -421,7 +454,7 @@ const Home: React.FC = () => {
         </section>
       )}
 
-      {/* FOOTER: Rút gọn padding pt-10 pb-10 */}
+      {/* FOOTER */}
       <footer className="relative pt-10 pb-10 bg-white dark:bg-slate-900 rounded-t-[3rem] shadow-2xl border-t border-orange-50 dark:border-slate-800 overflow-hidden transition-colors">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 -z-0" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 -z-0" />
