@@ -12,8 +12,6 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const lang = localStorage.getItem('app_lang') || 'vi';
   config.headers['Accept-Language'] = lang;
-
-  // Tự động gửi token nếu có
   const token = localStorage.getItem('token');
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
@@ -32,19 +30,17 @@ const mapBackendToFrontend = (data: any): PortfolioData => {
   return {
     id: data.id,
     fullName: data.fullName,
-    title: data.title,
+    titleVi: data.titleVi,
+    titleEn: data.titleEn,
     jobTitle: data.jobTitle,
     bio: data.bio,
     avatarUrl: resolveImageUrl(data.avatarUrl),
     strengths: data.strengths || "Problem Solving",
     workStyle: data.workStyle || "Professional",
-
-    // --- Map thông tin tổ chức ---
     regionName: data.regionName,
     localOrgName: data.localOrgName,
     departmentName: data.departmentName,
     departmentId: data.departmentId,
-
     contact: {
       email: data.contact?.email || "",
       github: data.contact?.github || "",
@@ -60,7 +56,7 @@ const mapBackendToFrontend = (data: any): PortfolioData => {
       gallery: p.gallery || [],
       technologies: p.techStack ? p.techStack.split(',').map((s: string) => s.trim()) : [],
       repoUrl: p.sourceCodeUrl,
-      sourceUrl: p.sourceCodeUrl, // Alias
+      sourceUrl: p.sourceCodeUrl,
       demoUrl: p.demoUrl,
       role: p.role || p.roleVi || p.roleEn,
       customer: p.customer,
@@ -117,12 +113,7 @@ export const portfolioService = {
     const response = await api.get(`/admin/portfolio/${id}`);
     return mapBackendToFrontend(response.data);
   },
-  getPortfolioByHierarchyCodes: async (
-    rCode: string,
-    lCode: string,
-    dCode: string,
-    pid: number
-  ): Promise<PortfolioData> => {
+  getPortfolioByHierarchyCodes: async (rCode: string, lCode: string, dCode: string, pid: number): Promise<PortfolioData> => {
     const response = await api.get(`/view/code/${rCode}/${lCode}/${dCode}/${pid}`);
     return mapBackendToFrontend(response.data);
   },
@@ -148,7 +139,14 @@ export const adminService = {
     formData.append('file', file);
     return (await api.post<string>('/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
   },
-  getAllProfiles: async () => (await api.get('/admin/list')).data,
+
+  // 👇 SỬA Ở ĐÂY: Thêm tham số page và size (mặc định 6)
+  // Trả về toàn bộ data để lấy được content và totalPages
+  getAllProfiles: async (page = 0, size = 6) => {
+    return (await api.get(`/admin/list?page=${page}&size=${size}`)).data;
+  },
+
+  deleteProfile: async (id: number) => api.delete(`/admin/profile/${id}`),
 
   updateProfile: async (data: any) => {
     return api.put('/admin/profile', data);
@@ -212,6 +210,7 @@ export const adminService = {
   deleteEvent: (id: number) => api.delete(`/admin/events/${id}`),
 };
 
+// ... (userService giữ nguyên)
 export const userService = {
   // 1. GET DETAIL BY ID
   getProject: (id: number) => api.get(`/user/projects/${id}`),
@@ -223,24 +222,30 @@ export const userService = {
 
   // 2. CRUD CHO USER
   updateProfile: (data: any) => api.put('/user/profile', data),
+  changePassword: (data: any) => api.post('/auth/change-password', data),
 
   addProject: (project: Project) => api.post('/user/projects', project),
   updateProject: (id: number, project: Project) => api.put(`/user/projects/${id}`, project),
   deleteProject: (id: number) => api.delete(`/user/projects/${id}`),
 
   addSkill: (skill: Skill) => api.post('/user/skills', skill),
+  updateSkill: (id: number, skill: Skill) => api.put(`/user/skills/${id}`, skill),
   deleteSkill: (id: number) => api.delete(`/user/skills/${id}`),
 
   addExperience: (exp: WorkExperience) => api.post('/user/experiences', exp),
+  updateExperience: (id: number, exp: WorkExperience) => api.put(`/user/experiences/${id}`, exp),
   deleteExperience: (id: number) => api.delete(`/user/experiences/${id}`),
 
   addEducation: (edu: any) => api.post('/user/educations', edu),
+  updateEducation: (id: number, edu: any) => api.put(`/user/educations/${id}`, edu),
   deleteEducation: (id: number) => api.delete(`/user/educations/${id}`),
 
   addPublication: (pub: any) => api.post('/user/publications', pub),
+  updatePublication: (id: number, pub: any) => api.put(`/user/publications/${id}`, pub),
   deletePublication: (id: number) => api.delete(`/user/publications/${id}`),
 
   addEvent: (evt: any) => api.post('/user/events', evt),
+  updateEvent: (id: number, evt: any) => api.put(`/user/events/${id}`, evt),
   deleteEvent: (id: number) => api.delete(`/user/events/${id}`),
 
   importCV: (file: File) => {
@@ -249,18 +254,11 @@ export const userService = {
     return api.post('/user/import-cv', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
 
-  // -----------------------------------------------------------
-  // 🔥 FIX QUAN TRỌNG: Xử lý mảng trả về từ Backend
-  // -----------------------------------------------------------
   getMyProfile: async (): Promise<PortfolioData> => {
     const response = await api.get('/user/profile');
-
-    // Nếu backend trả về mảng (List<PortfolioDTO>), lấy phần tử đầu tiên
     if (Array.isArray(response.data) && response.data.length > 0) {
       return mapBackendToFrontend(response.data[0]);
     }
-
-    // Fallback nếu backend trả về object
     return mapBackendToFrontend(response.data);
   },
 

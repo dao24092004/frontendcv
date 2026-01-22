@@ -6,7 +6,8 @@ import {
   FaImage, FaPlus, FaEdit, FaTrash, FaSave, FaTimes,
   FaTools, FaBriefcase, FaFileUpload, FaList, FaCheck,
   FaGraduationCap, FaNewspaper, FaTrophy, FaGlobe, FaCloudUploadAlt, FaSpinner,
-  FaSitemap, FaBuilding, FaUsers, FaMapMarkerAlt, FaLink, FaCopy, FaExternalLinkAlt, FaUserPlus, FaLock, FaSignOutAlt
+  FaSitemap, FaBuilding, FaUsers, FaMapMarkerAlt, FaLink, FaCopy, FaExternalLinkAlt, FaUserPlus, FaLock, FaSignOutAlt,
+  FaChevronLeft, FaChevronRight
 } from 'react-icons/fa';
 import VideoCallInterface from '../components/VideoCallInterface';
 import { portfolioService, adminService } from '../services/api';
@@ -30,6 +31,11 @@ const Admin: React.FC = () => {
 
   const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
   const [profileList, setProfileList] = useState<any[]>([]);
+
+  // --- PAGINATION STATE ---
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const PAGE_SIZE = 6; // Số lượng hiển thị mỗi trang
 
   // --- ACCOUNT TAB STATE ---
   const [accountState, setAccountState] = useState<'create' | 'update'>('create');
@@ -81,6 +87,7 @@ const Admin: React.FC = () => {
   const [replyText, setReplyText] = useState('');
   const [incomingCalls, setIncomingCalls] = useState<any[]>([]);
   const [activeCallRoom, setActiveCallRoom] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const stompClient = useRef<Client | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,22 +96,18 @@ const Admin: React.FC = () => {
     fetchInitialData();
     connectSocket();
     return () => { stompClient.current?.deactivate(); };
-  }, []);
+  }, [currentPage]); // Fetch lại khi trang thay đổi
 
   useEffect(() => {
     if (activeTab === 'organization') fetchOrgData();
     if (activeTab === 'account') checkAccountStatus();
   }, [activeTab, portfolioData]);
 
-  // --- LOGOUT FUNCTION ---
   const handleLogout = () => {
     localStorage.clear();
     navigate('/login');
   };
 
-  // ============================================================
-  // 🔥 LOGIC ACCOUNT TAB
-  // ============================================================
   const checkAccountStatus = async () => {
     if (!portfolioData?.id) return;
     setAccountForm({ username: '', password: '', confirmPassword: '' });
@@ -132,11 +135,8 @@ const Admin: React.FC = () => {
 
     try {
       if (accountState === 'create') {
-        // Gọi API đăng ký
         await axios.post(`${API_BASE_URL}/api/v1/auth/register`, {
-          // --- QUAN TRỌNG: Gửi ID của Profile hiện tại ---
           profileId: portfolioData.id,
-          // -----------------------------------------------
           fullName: portfolioData?.fullName,
           username: accountForm.username,
           password: accountForm.password
@@ -153,9 +153,27 @@ const Admin: React.FC = () => {
     }
   };
 
-  // ============================================================
-  // AUTO-FILL DROPDOWN
-  // ============================================================
+  const handleDeleteProfile = async (id: number, name: string) => {
+    if (confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN hồ sơ "${name}"? Hành động này không thể hoàn tác.`)) {
+      try {
+        await adminService.deleteProfile(id);
+        alert("✅ Đã xóa hồ sơ thành công!");
+        if (portfolioData?.id === id) {
+          setPortfolioData(null);
+          setEditingProfile(null);
+          // Load trang đầu tiên
+          if (currentPage !== 0) setCurrentPage(0);
+          else fetchInitialData();
+        } else {
+          fetchInitialData();
+        }
+      } catch (e: any) {
+        console.error("Delete Error:", e);
+        alert("Lỗi khi xóa: " + (e.response?.data || "Lỗi không xác định"));
+      }
+    }
+  };
+
   useEffect(() => {
     if (portfolioData && regions.length > 0 && locals.length > 0 && departments.length > 0) {
       let foundRegionId, foundLocalId, foundDeptId;
@@ -188,18 +206,32 @@ const Admin: React.FC = () => {
     }
   }, [portfolioData, regions, locals, departments]);
 
+  // --- UPDATED FETCH INITIAL DATA WITH PAGINATION ---
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      const list = await adminService.getAllProfiles();
+      // Gọi API phân trang: trả về { content: [...], totalPages: ..., ... }
+      const response = await adminService.getAllProfiles(currentPage, PAGE_SIZE);
+
+      const list = response.content || []; // Lấy mảng từ content
       setProfileList(list);
-      if (list.length > 0) {
-        const currentId = portfolioData?.id || list[0].id;
+      setTotalPages(response.totalPages || 0);
+
+      // Nếu list có dữ liệu và chưa chọn profile nào, chọn cái đầu tiên
+      if (list.length > 0 && !portfolioData) {
+        const currentId = list[0].id;
         const data = await portfolioService.getPortfolioById(currentId);
         setPortfolioData(data);
         setEditingProfile(data);
+      } else if (list.length === 0) {
+        setPortfolioData(null);
+        setEditingProfile(null);
       }
-    } catch (e) { console.error(e); } finally { setLoading(false); }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reloadProfileData = async () => {
@@ -302,6 +334,8 @@ const Admin: React.FC = () => {
         try {
           await adminService.importCV(e.target.files[0]);
           alert("✅ CV Imported successfully!");
+          // Reset về trang 1
+          setCurrentPage(0);
           await fetchInitialData();
           setActiveTab('profile-list');
         } catch (err) { alert("❌ Import failed!"); }
@@ -317,7 +351,6 @@ const Admin: React.FC = () => {
     }
   };
 
-  // --- ORGANIZATION LOGIC ---
   const getAssignmentLevelText = () => {
     if (selDeptId) return "Department Level";
     if (selLocalId) return "Local Org Level";
@@ -392,38 +425,39 @@ const Admin: React.FC = () => {
   const openEditProject = (project: Project) => { setEditingProject({ ...project }); setShowProjectModal(true); };
   const saveProject = async () => {
     if (portfolioData?.id) {
+      if (isSaving) return; setIsSaving(true);
       try {
         if (editingProject.id) await adminService.updateProject(editingProject as Project, portfolioData.id);
         else await adminService.createProject(editingProject as Project, portfolioData.id);
         setShowProjectModal(false); reloadProfileData();
-      } catch (e) { alert("Error saving project"); }
+      } catch (e) { alert("Error saving project"); } finally { setIsSaving(false); }
     }
   };
   const deleteProject = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteProject(id); reloadProfileData(); } };
 
   const openAddExperience = () => { setEditingExp({ company: '', role: '', startDate: '', endDate: '', description: '', isCurrent: false }); setShowExpModal(true); };
   const openEditExperience = (exp: WorkExperience) => { setEditingExp({ ...exp }); setShowExpModal(true); };
-  const saveExperience = async () => { if (portfolioData?.id) { if (editingExp.id) await adminService.updateExperience(editingExp as WorkExperience, portfolioData.id); else await adminService.addExperience(editingExp as WorkExperience, portfolioData.id); setShowExpModal(false); reloadProfileData(); } };
+  const saveExperience = async () => { if (portfolioData?.id) { if (isSaving) return; setIsSaving(true); try { if (editingExp.id) await adminService.updateExperience(editingExp as WorkExperience, portfolioData.id); else await adminService.addExperience(editingExp as WorkExperience, portfolioData.id); setShowExpModal(false); reloadProfileData(); } catch (e) { alert("Error") } finally { setIsSaving(false); } } };
   const deleteExperience = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteExperience(id); reloadProfileData(); } };
 
   const openAddSkill = () => { setEditingSkill({ name: '', category: 'Backend', proficiency: 50 }); setShowSkillModal(true); };
   const openEditSkill = (skill: Skill) => { setEditingSkill({ ...skill }); setShowSkillModal(true); };
-  const saveSkill = async () => { if (portfolioData?.id) { if (editingSkill.id) await adminService.updateSkill(editingSkill as Skill, portfolioData.id); else await adminService.addSkill(editingSkill as Skill, portfolioData.id); setShowSkillModal(false); reloadProfileData(); } };
+  const saveSkill = async () => { if (portfolioData?.id) { if (isSaving) return; setIsSaving(true); try { if (editingSkill.id) await adminService.updateSkill(editingSkill as Skill, portfolioData.id); else await adminService.addSkill(editingSkill as Skill, portfolioData.id); setShowSkillModal(false); reloadProfileData(); } catch (e) { alert("Error") } finally { setIsSaving(false); } } };
   const deleteSkill = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteSkill(id); reloadProfileData(); } };
 
   const openAddEducation = () => { setEditingEdu({ schoolName: '', degree: '', startDate: '', endDate: '', description: '' }); setShowEduModal(true); };
   const openEditEducation = (edu: any) => { setEditingEdu({ ...edu }); setShowEduModal(true); };
-  const saveEducation = async () => { if (portfolioData?.id) { if (editingEdu.id) await adminService.updateEducation(editingEdu, portfolioData.id); else await adminService.addEducation(editingEdu, portfolioData.id); setShowEduModal(false); reloadProfileData(); } };
+  const saveEducation = async () => { if (portfolioData?.id) { if (isSaving) return; setIsSaving(true); try { if (editingEdu.id) await adminService.updateEducation(editingEdu, portfolioData.id); else await adminService.addEducation(editingEdu, portfolioData.id); setShowEduModal(false); reloadProfileData(); } catch (e) { alert("Error") } finally { setIsSaving(false); } } };
   const deleteEducation = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteEducation(id); reloadProfileData(); } };
 
   const openAddPub = () => { setEditingPub({ title: '', publisher: '', releaseDate: '', url: '' }); setShowPubModal(true); };
   const openEditPub = (pub: any) => { setEditingPub({ ...pub }); setShowPubModal(true); };
-  const savePub = async () => { if (portfolioData?.id) { if (editingPub.id) await adminService.updatePublication(editingPub, portfolioData.id); else await adminService.addPublication(editingPub, portfolioData.id); setShowPubModal(false); reloadProfileData(); } };
+  const savePub = async () => { if (portfolioData?.id) { if (isSaving) return; setIsSaving(true); try { if (editingPub.id) await adminService.updatePublication(editingPub, portfolioData.id); else await adminService.addPublication(editingPub, portfolioData.id); setShowPubModal(false); reloadProfileData(); } catch (e) { alert("Error") } finally { setIsSaving(false); } } };
   const deletePub = async (id: number) => { if (confirm("Delete?")) { await adminService.deletePublication(id); reloadProfileData(); } };
 
   const openAddEvent = () => { setEditingEvent({ name: '', role: '', date: '', description: '', imageUrl: '' }); setShowEventModal(true); };
   const openEditEvent = (evt: any) => { setEditingEvent({ ...evt }); setShowEventModal(true); };
-  const saveEvent = async () => { if (portfolioData?.id) { if (editingEvent.id) await adminService.updateEvent(editingEvent, portfolioData.id); else await adminService.addEvent(editingEvent, portfolioData.id); setShowEventModal(false); reloadProfileData(); } };
+  const saveEvent = async () => { if (portfolioData?.id) { if (isSaving) return; setIsSaving(true); try { if (editingEvent.id) await adminService.updateEvent(editingEvent, portfolioData.id); else await adminService.addEvent(editingEvent, portfolioData.id); setShowEventModal(false); reloadProfileData(); } catch (e) { alert("Error") } finally { setIsSaving(false); } } };
   const deleteEvent = async (id: number) => { if (confirm("Delete?")) { await adminService.deleteEvent(id); reloadProfileData(); } };
 
   if (loading) return <div className="h-screen flex items-center justify-center text-xl font-bold text-orange-600">Loading System...</div>;
@@ -492,7 +526,7 @@ const Admin: React.FC = () => {
           </div>
         )}
 
-        {/* --- ACCOUNT TAB (TÍNH NĂNG MỚI ĐÃ SỬA) --- */}
+        {/* ACCOUNT TAB */}
         {activeTab === 'account' && (
           <div className="p-8 flex justify-center items-start h-full bg-gray-50">
             <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
@@ -558,9 +592,8 @@ const Admin: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <input className="border p-2 rounded" placeholder="Full Name" value={editingProfile.fullName} onChange={e => setEditingProfile({ ...editingProfile, fullName: e.target.value })} />
 
-                {/* --- ADDED TITLE INPUT HERE --- */}
-                <input className="border p-2 rounded" placeholder="Website Title (e.g. My Portfolio)" value={editingProfile.title || ''} onChange={e => setEditingProfile({ ...editingProfile, title: e.target.value })} />
-                {/* ------------------------------- */}
+                <input className="border p-2 rounded" placeholder="Website Title (VI)" value={editingProfile.titleVi || ''} onChange={e => setEditingProfile({ ...editingProfile, titleVi: e.target.value })} />
+                <input className="border p-2 rounded" placeholder="Website Title (EN)" value={editingProfile.titleEn || ''} onChange={e => setEditingProfile({ ...editingProfile, titleEn: e.target.value })} />
 
                 <input className="border p-2 rounded" placeholder="Job Title" value={editingProfile.jobTitle} onChange={e => setEditingProfile({ ...editingProfile, jobTitle: e.target.value })} />
                 <input className="border p-2 rounded" placeholder="Email" value={editingProfile.contact?.email} onChange={e => setEditingProfile({ ...editingProfile, contact: { ...editingProfile.contact!, email: e.target.value } })} />
@@ -578,7 +611,9 @@ const Admin: React.FC = () => {
             <div className="bg-white p-6 rounded-xl shadow-sm border mb-8 max-w-4xl">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-bold text-lg flex items-center gap-2"><FaUser /> Assign Current User</h3>
-                <span className="text-sm bg-gray-100 px-3 py-1 rounded text-gray-500">Current: <span className="font-bold text-gray-700 ml-1">{portfolioData.regionName || 'N/A'}</span> &gt; <span className="font-bold text-gray-700 ml-1">{portfolioData.localOrgName || 'N/A'}</span> &gt; <span className="font-bold text-orange-600 ml-1">{portfolioData.departmentName || 'N/A'}</span></span>
+                <span className="text-sm bg-gray-100 px-3 py-1 rounded text-gray-500">
+                  Current: <span className="font-bold text-gray-700 ml-1">{portfolioData.regionName || 'N/A'}</span> &gt; <span className="font-bold text-gray-700 ml-1">{portfolioData.localOrgName || 'N/A'}</span> &gt; <span className="font-bold text-orange-600 ml-1">{portfolioData.departmentName || 'N/A'}</span>
+                </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div><label className="block text-xs font-bold text-gray-400 uppercase mb-2">1. Region</label><select className="w-full border p-3 rounded-lg bg-gray-50 focus:ring-2 focus:ring-orange-500 outline-none" value={selRegionId} onChange={(e) => { setSelRegionId(e.target.value); setSelLocalId(''); setSelDeptId(''); }}><option value="">-- Select Region --</option>{(regions || []).map(r => <option key={r.id} value={r.id}>{r.name} ({r.code})</option>)}</select></div>
@@ -688,7 +723,40 @@ const Admin: React.FC = () => {
         {activeTab === 'profile-list' && (
           <div className="p-8 overflow-y-auto h-full">
             <h2 className="text-2xl font-bold mb-6">Manage Profiles</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{profileList.map((p: any) => (<div key={p.id} className={`bg-white p-6 rounded-xl border shadow-sm relative group hover:border-orange-500 transition`}><div className="cursor-pointer" onClick={() => handleSwitchProfile(p.id)}><div className="flex items-center gap-4 mb-4"><img src={p.avatarUrl || "https://placehold.co/100"} className="w-12 h-12 rounded-full bg-gray-200 object-cover" /><div><h4 className="font-bold truncate max-w-[150px]">{p.fullName || "Unnamed"}</h4><p className="text-xs text-gray-500 truncate max-w-[150px]">{p.jobTitle || "No Title"}</p></div></div><div className="text-xs text-gray-400">ID: {p.id}</div></div><div className="mt-4 flex justify-between items-center border-t pt-4"><button onClick={(e) => { e.stopPropagation(); handleActivateProfile(p.id, p.fullName); }} className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-bold hover:bg-green-200 transition flex items-center gap-1 shadow-sm border border-green-200"><FaGlobe /> Set Public</button>{portfolioData?.id === p.id && (<span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold flex items-center gap-1"><FaCheck /> Editing</span>)}</div></div>))}</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{profileList.map((p: any) => (<div key={p.id} className={`bg-white p-6 rounded-xl border shadow-sm relative group hover:border-orange-500 transition`}><div className="cursor-pointer" onClick={() => handleSwitchProfile(p.id)}><div className="flex items-center gap-4 mb-4"><img src={p.avatarUrl || "https://placehold.co/100"} className="w-12 h-12 rounded-full bg-gray-200 object-cover" /><div><h4 className="font-bold truncate max-w-[150px]">{p.fullName || "Unnamed"}</h4><p className="text-xs text-gray-500 truncate max-w-[150px]">{p.jobTitle || "No Title"}</p></div></div><div className="text-xs text-gray-400">ID: {p.id}</div></div>
+
+              {/* Action Buttons */}
+              <div className="mt-4 flex justify-between items-center border-t pt-4">
+                <div className="flex gap-2">
+                  <button onClick={(e) => { e.stopPropagation(); handleActivateProfile(p.id, p.fullName); }} className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-bold hover:bg-green-200 transition flex items-center gap-1 shadow-sm border border-green-200"><FaGlobe /> Public</button>
+                  {/* DELETE BUTTON ADDED HERE */}
+                  <button onClick={(e) => { e.stopPropagation(); handleDeleteProfile(p.id, p.fullName); }} className="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-full font-bold hover:bg-red-200 transition flex items-center gap-1 shadow-sm border border-red-200"><FaTrash /> Del</button>
+                </div>
+                {portfolioData?.id === p.id && (<span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold flex items-center gap-1"><FaCheck /> Editing</span>)}
+              </div>
+
+            </div>))}</div>
+
+            {/* --- THANH PHÂN TRANG (MỚI THÊM) --- */}
+            <div className="flex justify-center items-center mt-8 gap-4">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                disabled={currentPage === 0}
+                className="bg-white border p-2 rounded-full shadow hover:bg-gray-100 disabled:opacity-50"
+              >
+                <FaChevronLeft />
+              </button>
+              <span className="font-bold text-gray-600">
+                Page {currentPage + 1} of {totalPages || 1}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => (p + 1 < totalPages ? p + 1 : p))}
+                disabled={currentPage >= totalPages - 1}
+                className="bg-white border p-2 rounded-full shadow hover:bg-gray-100 disabled:opacity-50"
+              >
+                <FaChevronRight />
+              </button>
+            </div>
           </div>
         )}
 

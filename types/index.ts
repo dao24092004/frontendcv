@@ -17,12 +17,10 @@ export interface Project {
   technologies: string[];
   demoUrl?: string;
   repoUrl?: string;
-  sourceUrl?: string; // Alias for repoUrl
 
   // --- BỔ SUNG ĐỂ KHỚP VỚI ADMIN FORM ---
   role?: string;      // Vai trò (VD: Backend Lead)
   customer?: string;  // Khách hàng (VD: Pet Project)
-  teamMembers?: string[]; // Danh sách thành viên dự án
 }
 
 export interface Skill {
@@ -54,7 +52,8 @@ export interface Education {
 export interface PortfolioData {
   id?: number;
   fullName: string;
-  title?: string;
+  titleVi?: string; // Vietnamese Title
+  titleEn?: string;
   jobTitle: string;
   bio: string;
   avatarUrl: string;
