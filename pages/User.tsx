@@ -6,7 +6,7 @@ import {
     FaImage, FaPlus, FaEdit, FaTrash, FaSave, FaTimes,
     FaBriefcase, FaFileUpload, FaList,
     FaGraduationCap, FaNewspaper, FaTrophy, FaGlobe, FaCloudUploadAlt, FaSpinner,
-    FaSignOutAlt, FaSearch, FaCommentDots, FaLock, FaKey, FaLink, FaCopy, FaExternalLinkAlt
+    FaSignOutAlt, FaSearch, FaCommentDots, FaLock, FaKey, FaCopy, FaExternalLinkAlt
 } from 'react-icons/fa';
 import VideoCallInterface from '../components/VideoCallInterface';
 import { userService, adminService } from '../services/api';
@@ -18,13 +18,13 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 interface ChatSession { visitorId: string; visitorName: string; messages: ChatMessage[]; unreadCount: number; lastActive: number; }
 
+// Đã bỏ 'cv-import'
 type ActiveTab = 'chat' | 'profile' | 'projects' | 'skills' | 'experience' | 'education' | 'publications' | 'events' | 'change-password';
 
 const User: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<ActiveTab>('profile');
     const [loading, setLoading] = useState(true);
-    const [loadingImport, setLoadingImport] = useState(false);
     const [uploading, setUploading] = useState(false);
 
     const [portfolioData, setPortfolioData] = useState<PortfolioData | null>(null);
@@ -72,7 +72,7 @@ const User: React.FC = () => {
 
     useEffect(() => {
         fetchInitialData();
-        fetchOrgData(); // Gọi thêm hàm này để lấy dữ liệu sinh link
+        fetchOrgData();
         connectSocket();
         return () => { stompClient.current?.deactivate(); };
     }, []);
@@ -101,10 +101,8 @@ const User: React.FC = () => {
         } catch (e) { console.error("Reload error", e); }
     };
 
-    // --- FETCH ORG DATA FOR LINK GENERATION ---
     const fetchOrgData = async () => {
         try {
-            // Sử dụng adminService để lấy danh sách tổ chức (thường là public hoặc user authenticated đều gọi được)
             const [r, l, d] = await Promise.all([
                 adminService.getRegions(),
                 adminService.getLocals(),
@@ -116,12 +114,10 @@ const User: React.FC = () => {
         } catch (e) { console.error("Error fetching org data:", e); }
     };
 
-    // --- GENERATE SHARE LINK ---
     const generateShareLink = () => {
         if (!portfolioData?.id) return "";
         const origin = window.location.origin;
 
-        // Nếu có departmentId, cố gắng tìm ngược lên Local và Region để lấy Code
         if (portfolioData.departmentId && departments.length > 0) {
             const dept = departments.find(d => d.id === portfolioData.departmentId);
             if (dept) {
@@ -129,14 +125,11 @@ const User: React.FC = () => {
                 if (local) {
                     const region = regions.find(r => r.id === local.regionId);
                     if (region) {
-                        // Full link: /view/REGION_CODE/LOCAL_CODE/DEPT_CODE/ID
                         return `${origin}/#/view/${region.code}/${local.code}/${dept.code}/${portfolioData.id}`;
                     }
                 }
             }
         }
-
-        // Fallback: Link ngắn gọn chỉ có ID nếu chưa được gán tổ chức hoặc dữ liệu chưa tải xong
         return `${origin}/#/view/${portfolioData.id}`;
     };
 
@@ -145,7 +138,6 @@ const User: React.FC = () => {
 
     const handleLogout = () => { localStorage.clear(); navigate('/login'); };
 
-    // --- CHANGE PASSWORD ---
     const handleChangePassword = async () => {
         if (passData.newPassword !== passData.confirmPassword) {
             alert("Mật khẩu xác nhận không khớp!");
@@ -163,7 +155,6 @@ const User: React.FC = () => {
         }
     };
 
-    // --- SOCKET ---
     const connectSocket = () => {
         const socket = new SockJS(import.meta.env.VITE_WS_URL);
         const client = new Client({
@@ -210,16 +201,6 @@ const User: React.FC = () => {
                 else if (target === 'project' && editingProject) setEditingProject(prev => ({ ...prev, imageUrl: url }));
                 else if (target === 'event') setEditingEvent((prev: any) => ({ ...prev, imageUrl: url }));
             } catch (err) { alert("Upload failed!"); } finally { setUploading(false); }
-        }
-    };
-
-    const handleImportCV = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files?.[0]) {
-            if (confirm("Importing CV overwrites current profile. Continue?")) {
-                setLoadingImport(true);
-                try { await userService.importCV(e.target.files[0]); alert("✅ CV Imported!"); await fetchInitialData(); setActiveTab('profile'); }
-                catch (err) { alert("❌ Import failed!"); } finally { setLoadingImport(false); }
-            }
         }
     };
 
@@ -316,7 +297,8 @@ const User: React.FC = () => {
                     <div className="text-xs text-green-500 flex justify-between items-center">ID: {portfolioData?.id}<button onClick={handleLogout} className="text-red-500 hover:text-red-700" title="Logout"><FaSignOutAlt /></button></div>
                 </div>
                 <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-                    {['chat', 'profile', 'change-password', 'projects', 'skills', 'experience', 'education', 'publications', 'events', 'cv-import'].map((tab) => (
+                    {/* ĐÃ BỎ 'cv-import' KHỎI LIST */}
+                    {['chat', 'profile', 'change-password', 'projects', 'skills', 'experience', 'education', 'publications', 'events'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab as ActiveTab)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg capitalize transition ${activeTab === tab ? 'bg-blue-50 text-blue-600 font-bold' : 'hover:bg-gray-100 text-gray-600'}`}>
                             {tab === 'chat' ? <FaCommentDots className="text-sm" /> : tab === 'change-password' ? <FaLock className="text-sm" /> : <FaList className="text-sm" />}
                             <span className="hidden md:block">{tab.replace('-', ' ')}</span>
@@ -377,33 +359,36 @@ const User: React.FC = () => {
                     </div>
                 )}
 
-                {/* PROFILE TAB (Updated with Title) */}
+                {/* PROFILE TAB (Updated with Title Placeholders) */}
                 {activeTab === 'profile' && editingProfile && (
                     <div className="p-8 overflow-y-auto h-full">
                         <h2 className="text-2xl font-bold mb-6">My Profile</h2>
                         <div className="bg-white p-6 rounded-xl shadow-sm space-y-6 max-w-3xl">
-                            <div className="flex items-center gap-6">
-                                <div className="relative group w-24 h-24">
-                                    <img src={editingProfile.avatarUrl || "https://placehold.co/150"} className="w-24 h-24 rounded-full border object-cover" />
-                                    {uploading && <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center"><FaSpinner className="animate-spin text-white" /></div>}
-                                    <label className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition text-white text-xs font-bold text-center">
-                                        Change <input type="file" hidden onChange={e => handleFileUpload(e, 'avatar')} />
-                                    </label>
-                                </div>
-                                <div>
-                                    <h3 className="font-bold">{editingProfile.fullName}</h3>
-                                    <p className="text-sm text-gray-500">Avatar Image</p>
-                                </div>
-                            </div>
+                            <div className="flex items-center gap-6"><div className="relative group w-24 h-24"><img src={editingProfile.avatarUrl || "https://placehold.co/150"} className="w-24 h-24 rounded-full border object-cover" /><label className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition text-white text-xs font-bold text-center">Change <input type="file" hidden onChange={e => handleFileUpload(e, 'avatar')} /></label></div><div><h3 className="font-bold">{editingProfile.fullName}</h3><p className="text-sm text-gray-500">Avatar Image</p></div></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <input className="border p-2 rounded" placeholder="Full Name" value={editingProfile.fullName} onChange={e => setEditingProfile({ ...editingProfile, fullName: e.target.value })} />
 
-                                {/* --- ADDED TITLE VI --- */}
-                                <input className="border p-2 rounded" placeholder="Website Title (VI)" value={editingProfile.titleVi || ''} onChange={e => setEditingProfile({ ...editingProfile, titleVi: e.target.value })} />
+                                {/* --- UPDATED PLACEHOLDERS WITH INSTRUCTIONS --- */}
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="text-xs font-bold text-gray-500 mb-1 block">Website Title (VI)</label>
+                                    <input
+                                        className="w-full border p-2 rounded"
+                                        placeholder="Ví dụ: XIN CHÀO | MỌI NGƯỜI (Dùng | để xuống dòng)"
+                                        value={editingProfile.titleVi || ''}
+                                        onChange={e => setEditingProfile({ ...editingProfile, titleVi: e.target.value })}
+                                    />
+                                </div>
 
-                                {/* --- ADDED TITLE EN --- */}
-                                <input className="border p-2 rounded" placeholder="Website Title (EN)" value={editingProfile.titleEn || ''} onChange={e => setEditingProfile({ ...editingProfile, titleEn: e.target.value })} />
-                                {/* ------------------------- */}
+                                <div className="col-span-2 md:col-span-1">
+                                    <label className="text-xs font-bold text-gray-500 mb-1 block">Website Title (EN)</label>
+                                    <input
+                                        className="w-full border p-2 rounded"
+                                        placeholder="Ex: ENGINEERING | PERFECTION (Use | for subtitle)"
+                                        value={editingProfile.titleEn || ''}
+                                        onChange={e => setEditingProfile({ ...editingProfile, titleEn: e.target.value })}
+                                    />
+                                </div>
+                                {/* --------------------------------------------- */}
 
                                 <input className="border p-2 rounded" placeholder="Job Title" value={editingProfile.jobTitle} onChange={e => setEditingProfile({ ...editingProfile, jobTitle: e.target.value })} />
                                 <input className="border p-2 rounded" placeholder="Email" value={editingProfile.contact?.email} onChange={e => setEditingProfile({ ...editingProfile, contact: { ...editingProfile.contact!, email: e.target.value } })} />
@@ -420,7 +405,7 @@ const User: React.FC = () => {
                                         value={generatedLink}
                                     />
                                     <button onClick={copyLink} className="bg-blue-100 text-blue-600 px-4 rounded hover:bg-blue-200 transition" title="Copy"><FaCopy /></button>
-                                    <a href={generatedLink} target="_blank" className="bg-blue-100 text-blue-600 px-4 py-2 rounded hover:bg-blue-200 transition flex items-center" title="Open"><FaExternalLinkAlt /></a>
+                                    <a href={generatedLink} target="_blank" rel="noreferrer" className="bg-blue-100 text-blue-600 px-4 py-2 rounded hover:bg-blue-200 transition flex items-center" title="Open"><FaExternalLinkAlt /></a>
                                 </div>
                             </div>
 
@@ -477,19 +462,6 @@ const User: React.FC = () => {
                         <div className="space-y-4">{portfolioData?.events?.map((e: any, idx) => (<div key={e.id || idx} className="bg-white p-4 rounded border flex justify-between items-center group hover:border-blue-200"><div className="flex items-center gap-3">{e.imageUrl && <img src={e.imageUrl} className="w-10 h-10 rounded object-cover" />}<div><h4 className="font-bold">{e.name} <span className="text-xs bg-gray-100 px-2 rounded font-normal">{e.role}</span></h4><p className="text-xs text-gray-500">{e.date}</p><p className="text-sm mt-1">{e.description}</p></div></div><div className="flex gap-2"><button onClick={(event) => { event.stopPropagation(); openEditEvent(e); }} className="text-blue-500 hover:bg-blue-50 p-2 rounded-full"><FaEdit /></button><button onClick={(event) => { event.stopPropagation(); e.id && deleteEvent(e.id); }} className="text-red-500 hover:bg-red-50 p-2 rounded-full"><FaTrash /></button></div></div>))}</div>
                     </div>
                 )}
-
-                {/* {activeTab === 'cv-import' && (
-                    <div className="p-8 flex items-center justify-center h-full">
-                        {loadingImport ? (
-                            <div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 border-solid mx-auto mb-4"></div><h2 className="text-xl font-bold">AI Processing...</h2></div>
-                        ) : (
-                            <div className="bg-white p-10 rounded-2xl shadow-lg text-center max-w-md w-full border-2 border-dashed border-gray-300">
-                                <FaFileUpload className="mx-auto text-6xl text-blue-500 mb-4" /><h2 className="text-2xl font-bold mb-2">Import CV</h2><p className="text-gray-500 mb-6 text-sm">Upload CV to auto-generate.</p>
-                                <label className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold cursor-pointer hover:bg-blue-700 transition block w-full">Select File<input type="file" hidden accept=".pdf,.docx" onChange={handleImportCV} /></label>
-                            </div>
-                        )}
-                    </div>
-                )} */}
 
                 {/* MODALS */}
                 {showProjectModal && editingProject && (

@@ -7,7 +7,7 @@ import {
   FaTools, FaBriefcase, FaFileUpload, FaList, FaCheck,
   FaGraduationCap, FaNewspaper, FaTrophy, FaGlobe, FaCloudUploadAlt, FaSpinner,
   FaSitemap, FaBuilding, FaUsers, FaMapMarkerAlt, FaLink, FaCopy, FaExternalLinkAlt, FaUserPlus, FaLock, FaSignOutAlt,
-  FaChevronLeft, FaChevronRight
+  FaChevronLeft, FaChevronRight, FaIdBadge
 } from 'react-icons/fa';
 import VideoCallInterface from '../components/VideoCallInterface';
 import { portfolioService, adminService } from '../services/api';
@@ -35,7 +35,7 @@ const Admin: React.FC = () => {
   // --- PAGINATION STATE ---
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const PAGE_SIZE = 6; // Số lượng hiển thị mỗi trang
+  const PAGE_SIZE = 6;
 
   // --- ACCOUNT TAB STATE ---
   const [accountState, setAccountState] = useState<'create' | 'update'>('create');
@@ -96,7 +96,7 @@ const Admin: React.FC = () => {
     fetchInitialData();
     connectSocket();
     return () => { stompClient.current?.deactivate(); };
-  }, [currentPage]); // Fetch lại khi trang thay đổi
+  }, [currentPage]);
 
   useEffect(() => {
     if (activeTab === 'organization') fetchOrgData();
@@ -108,10 +108,23 @@ const Admin: React.FC = () => {
     navigate('/login');
   };
 
+  // 🔥 UPDATE: Tự động check username từ portfolioData
   const checkAccountStatus = async () => {
     if (!portfolioData?.id) return;
-    setAccountForm({ username: '', password: '', confirmPassword: '' });
-    setAccountState('create');
+
+    // Nếu portfolioData đã có username (từ backend)
+    if (portfolioData.username) {
+      setAccountState('update');
+      // Điền sẵn username vào form (để hiển thị)
+      setAccountForm({
+        username: portfolioData.username,
+        password: '',
+        confirmPassword: ''
+      });
+    } else {
+      setAccountState('create');
+      setAccountForm({ username: '', password: '', confirmPassword: '' });
+    }
   };
 
   const handleAccountAction = async () => {
@@ -143,11 +156,15 @@ const Admin: React.FC = () => {
         }, { headers });
 
         alert(`✅ Đã tạo tài khoản cho profile: ${portfolioData.fullName}`);
+
+        // Refresh lại data để lấy username vừa tạo
+        reloadProfileData();
         setAccountState('update');
       } else {
         alert("Tính năng đổi mật khẩu user khác cần API Backend hỗ trợ!");
       }
-      setAccountForm({ username: '', password: '', confirmPassword: '' });
+      // Giữ lại username trong form
+      setAccountForm({ username: accountForm.username, password: '', confirmPassword: '' });
     } catch (e: any) {
       alert("Lỗi: " + (e.response?.data?.message || e.response?.data || "Không thể thực hiện yêu cầu"));
     }
@@ -161,7 +178,6 @@ const Admin: React.FC = () => {
         if (portfolioData?.id === id) {
           setPortfolioData(null);
           setEditingProfile(null);
-          // Load trang đầu tiên
           if (currentPage !== 0) setCurrentPage(0);
           else fetchInitialData();
         } else {
@@ -206,18 +222,15 @@ const Admin: React.FC = () => {
     }
   }, [portfolioData, regions, locals, departments]);
 
-  // --- UPDATED FETCH INITIAL DATA WITH PAGINATION ---
   const fetchInitialData = async () => {
     try {
       setLoading(true);
-      // Gọi API phân trang: trả về { content: [...], totalPages: ..., ... }
       const response = await adminService.getAllProfiles(currentPage, PAGE_SIZE);
 
-      const list = response.content || []; // Lấy mảng từ content
+      const list = response.content || [];
       setProfileList(list);
       setTotalPages(response.totalPages || 0);
 
-      // Nếu list có dữ liệu và chưa chọn profile nào, chọn cái đầu tiên
       if (list.length > 0 && !portfolioData) {
         const currentId = list[0].id;
         const data = await portfolioService.getPortfolioById(currentId);
@@ -334,7 +347,6 @@ const Admin: React.FC = () => {
         try {
           await adminService.importCV(e.target.files[0]);
           alert("✅ CV Imported successfully!");
-          // Reset về trang 1
           setCurrentPage(0);
           await fetchInitialData();
           setActiveTab('profile-list');
@@ -476,7 +488,14 @@ const Admin: React.FC = () => {
         <div className="p-4 border-b">
           <div className="text-xs text-gray-400 uppercase font-bold">Editing Profile</div>
           <div className="font-bold truncate">{portfolioData?.fullName}</div>
-          <div className="text-xs text-green-500 flex justify-between items-center">
+
+          {/* 🔥 HIỂN THỊ USERNAME Ở SIDEBAR 🔥 */}
+          <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+            <FaUser className="text-orange-500" />
+            <span className="font-bold text-orange-600 truncate">{portfolioData?.username || 'Chưa có TK'}</span>
+          </div>
+
+          <div className="text-xs text-green-500 flex justify-between items-center mt-2">
             ID: {portfolioData?.id}
             <button onClick={handleLogout} className="text-red-500 hover:text-red-700" title="Logout"><FaSignOutAlt /></button>
           </div>
@@ -526,7 +545,7 @@ const Admin: React.FC = () => {
           </div>
         )}
 
-        {/* ACCOUNT TAB */}
+        {/* ACCOUNT TAB - UPDATED WITH USERNAME DISPLAY */}
         {activeTab === 'account' && (
           <div className="p-8 flex justify-center items-start h-full bg-gray-50">
             <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
@@ -539,7 +558,8 @@ const Admin: React.FC = () => {
                 ID: {portfolioData?.id}
               </div>
 
-              {accountState === 'create' && (
+              {/* 🔥 LOGIC HIỂN THỊ USERNAME NẾU ĐÃ CÓ 🔥 */}
+              {accountState === 'create' ? (
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
                   <input
@@ -548,6 +568,15 @@ const Admin: React.FC = () => {
                     className="w-full border p-2 rounded focus:ring-2 focus:ring-orange-500 outline-none"
                     placeholder="Enter username"
                   />
+                </div>
+              ) : (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <div className="w-full border p-2 rounded bg-gray-100 text-gray-600 font-bold flex items-center gap-2">
+                    <FaUser className="text-gray-400" />
+                    {portfolioData?.username}
+                  </div>
+                  <p className="text-xs text-orange-500 mt-1 italic">*Username cannot be changed.</p>
                 </div>
               )}
 
@@ -723,13 +752,21 @@ const Admin: React.FC = () => {
         {activeTab === 'profile-list' && (
           <div className="p-8 overflow-y-auto h-full">
             <h2 className="text-2xl font-bold mb-6">Manage Profiles</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{profileList.map((p: any) => (<div key={p.id} className={`bg-white p-6 rounded-xl border shadow-sm relative group hover:border-orange-500 transition`}><div className="cursor-pointer" onClick={() => handleSwitchProfile(p.id)}><div className="flex items-center gap-4 mb-4"><img src={p.avatarUrl || "https://placehold.co/100"} className="w-12 h-12 rounded-full bg-gray-200 object-cover" /><div><h4 className="font-bold truncate max-w-[150px]">{p.fullName || "Unnamed"}</h4><p className="text-xs text-gray-500 truncate max-w-[150px]">{p.jobTitle || "No Title"}</p></div></div><div className="text-xs text-gray-400">ID: {p.id}</div></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{profileList.map((p: any) => (<div key={p.id} className={`bg-white p-6 rounded-xl border shadow-sm relative group hover:border-orange-500 transition`}><div className="cursor-pointer" onClick={() => handleSwitchProfile(p.id)}><div className="flex items-center gap-4 mb-4"><img src={p.avatarUrl || "https://placehold.co/100"} className="w-12 h-12 rounded-full bg-gray-200 object-cover" /><div><h4 className="font-bold truncate max-w-[150px]">{p.fullName || "Unnamed"}</h4><p className="text-xs text-gray-500 truncate max-w-[150px]">{p.jobTitle || "No Title"}</p></div></div>
+
+              {/* 🔥 HIỂN THỊ USERNAME TRONG LIST 🔥 */}
+              <div className="text-xs text-gray-400 flex justify-between items-center">
+                <span>ID: {p.id}</span>
+                <span className="font-bold text-orange-500 flex items-center gap-1"><FaUser className="text-[10px]" /> {p.username || 'No Acc'}</span>
+              </div>
+
+            </div>
 
               {/* Action Buttons */}
               <div className="mt-4 flex justify-between items-center border-t pt-4">
                 <div className="flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); handleActivateProfile(p.id, p.fullName); }} className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-bold hover:bg-green-200 transition flex items-center gap-1 shadow-sm border border-green-200"><FaGlobe /> Public</button>
-                  {/* DELETE BUTTON ADDED HERE */}
+                  {/* DELETE BUTTON */}
                   <button onClick={(e) => { e.stopPropagation(); handleDeleteProfile(p.id, p.fullName); }} className="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded-full font-bold hover:bg-red-200 transition flex items-center gap-1 shadow-sm border border-red-200"><FaTrash /> Del</button>
                 </div>
                 {portfolioData?.id === p.id && (<span className="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded-full font-bold flex items-center gap-1"><FaCheck /> Editing</span>)}
@@ -737,7 +774,7 @@ const Admin: React.FC = () => {
 
             </div>))}</div>
 
-            {/* --- THANH PHÂN TRANG (MỚI THÊM) --- */}
+            {/* --- THANH PHÂN TRANG --- */}
             <div className="flex justify-center items-center mt-8 gap-4">
               <button
                 onClick={() => setCurrentPage(p => Math.max(0, p - 1))}

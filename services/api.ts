@@ -32,6 +32,7 @@ const mapBackendToFrontend = (data: any): PortfolioData => {
     fullName: data.fullName,
     titleVi: data.titleVi,
     titleEn: data.titleEn,
+    username: data.userName,
     jobTitle: data.jobTitle,
     bio: data.bio,
     avatarUrl: resolveImageUrl(data.avatarUrl),

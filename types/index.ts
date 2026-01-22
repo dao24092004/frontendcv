@@ -54,6 +54,7 @@ export interface PortfolioData {
   fullName: string;
   titleVi?: string; // Vietnamese Title
   titleEn?: string;
+  username?: string;
   jobTitle: string;
   bio: string;
   avatarUrl: string;
