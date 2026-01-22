@@ -174,6 +174,14 @@ const Home: React.FC = () => {
   const sectionMyArsenal = getTranslation('sections.myArsenal');
   const sectionResearch = getTranslation('sections.research');
   const sectionRecognitions = getTranslation('sections.recognitions');
+  const coreTech = getTranslation('stats.coreTech');
+  const experience = getTranslation('stats.experience');
+  const connect = getTranslation('stats.connect');
+  const socialNetwork = getTranslation('stats.socialNetwork');
+  const yearsActive = getTranslation('stats.yearsActive');
+  const letsConnect = getTranslation('footer.letsConnect');
+  const letsConnect2 = getTranslation('footer.letsConnect2');
+  const availableForNewOpportunities = getTranslation('footer.availableForNewOpportunities');
 
   return (
     <div className={`min-h-screen font-sans transition-colors duration-700 selection:bg-orange-500 selection:text-white ${isDark ? 'bg-black text-slate-200' : 'bg-slate-50 text-[#1a1a1a]'}`}>
@@ -195,7 +203,7 @@ const Home: React.FC = () => {
       <motion.div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-600 origin-left z-[110]" style={{ scaleX }} />
 
       {/* ================= HERO SECTION ================= */}
-      <section id="hero" className="relative min-h-screen flex items-center justify-center pt-20 pb-2 overflow-hidden px-4 md:px-8">
+      <section id="hero" className="relative min-h-screen flex items-center justify-center pt-20 pb-16 md:pb-24 overflow-hidden px-4 md:px-8">
         <TechScene isDark={isDark} />
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-soft-light"></div>
 
@@ -274,16 +282,16 @@ const Home: React.FC = () => {
               <motion.div variants={itemVariants} whileHover={{ y: -10 }} className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] flex items-center gap-4 shadow-sm transition-colors hover:border-orange-500/50">
                 <div className="p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl text-2xl"><FaCode /></div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Core Tech</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{coreTech}</p>
                   <div className="flex gap-2 mt-1">{data.skills.slice(0, 3).map((s, i) => (<span key={i} className="text-sm font-bold text-slate-800 dark:text-slate-200">{s.name}{i < 2 ? ',' : ''}</span>))}</div>
                 </div>
               </motion.div>
               <motion.div variants={itemVariants} whileHover={{ y: -10 }} className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] flex items-center gap-4 shadow-sm transition-colors hover:border-purple-500/50">
                 <div className="p-4 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-2xl text-2xl"><FaRocket /></div>
-                <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Experience</p><p className="text-lg font-black text-slate-800 dark:text-slate-200">{data.workHistory.length}+ Years Active</p></div>
+                <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{experience}</p><p className="text-lg font-black text-slate-800 dark:text-slate-200">{data.workHistory.length}+ {yearsActive}</p></div>
               </motion.div>
               <motion.div variants={itemVariants} whileHover={{ y: -10 }} className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] flex items-center justify-between shadow-sm transition-colors hover:border-green-500/50">
-                <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Connect</p><p className="text-sm font-bold text-slate-800 dark:text-slate-200">Social Network</p></div>
+                <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{connect}</p><p className="text-sm font-bold text-slate-800 dark:text-slate-200">{socialNetwork}</p></div>
                 <div className="flex gap-2">
                   {data.contact.github && (<a href={data.contact.github} target="_blank" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-black hover:text-white transition-colors"><FaGithub /></a>)}
                   {data.contact.linkedin && (<a href={data.contact.linkedin} target="_blank" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white transition-colors"><FaLinkedin /></a>)}
@@ -297,7 +305,7 @@ const Home: React.FC = () => {
 
       {/* ================= JOURNEY SECTION ================= */}
       {hasData(data.workHistory) && (
-        <section id="experience" className="py-4 md:py-8 scroll-mt-20 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl border-y border-orange-50 dark:border-slate-800">
+        <section id="experience" className="pt-12 md:pt-16 pb-6 md:pb-10 scroll-mt-20 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-xl border-y border-orange-50 dark:border-slate-800">
           <div className="container mx-auto px-6">
             <div className="flex items-center gap-4 mb-6">
               <FaBriefcase className="text-3xl text-blue-400" />
@@ -352,15 +360,16 @@ const Home: React.FC = () => {
 
       {/* ================= PROJECTS SECTION ================= */}
       {hasData(data.projects) && (
-        <section id="projects" className="py-2 scroll-mt-20">
+        <section id="projects" className="pt-6 md:pt-8 pb-2 scroll-mt-20">
           <div className="container mx-auto px-6 text-center mb-2">
-            <h2 className={headingClassName}>{sectionWorkSelection}</h2>
+            <h2 className={`text-5xl md:text-7xl font-black tracking-tighter uppercase transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>{sectionWorkSelection}</h2>
           </div>
           <ZigZagSection
             projects={data.projects}
             visibleCount={visibleProjectItems}
             onShowMore={handleShowMoreProjects}
             hasMore={visibleProjectItems < data.projects.length}
+            isDark={isDark}
           />
         </section>
       )}
@@ -391,12 +400,12 @@ const Home: React.FC = () => {
       {hasData(data.skills) && (
         <section id="skills" className="py-6 md:py-10 bg-transparent scroll-mt-20">
           <div className="container mx-auto px-6">
-            <h2 className={`${headingClassName} mb-6`}>{sectionMyArsenal}</h2>
+            <h2 className={`text-5xl md:text-7xl font-black tracking-tighter uppercase mb-6 transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>{sectionMyArsenal}</h2>
             <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
               {data.skills.map((skill, index) => (
-                <motion.div key={index} variants={itemVariants} whileHover={{ y: -5, scale: 1.02 }} className="p-6 bg-white/50 dark:bg-white/5 backdrop-blur-md rounded-[2rem] border border-orange-50 dark:border-white/10 transition-all shadow-sm hover:shadow-xl">
-                  <h3 className="text-xs md:text-sm font-black uppercase tracking-widest mb-3 text-slate-800 dark:text-white">{skill.name}</h3>
-                  <div className="h-1.5 w-full bg-white dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
+                <motion.div key={index} variants={itemVariants} whileHover={{ y: -5, scale: 1.02 }} className="p-6 bg-white/95 dark:bg-white/5 backdrop-blur-lg rounded-[2rem] border border-orange-100 dark:border-white/10 transition-all shadow-md hover:shadow-xl">
+                  <h3 className={`text-xs md:text-sm font-black uppercase tracking-widest mb-3 transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>{skill.name}</h3>
+                  <div className="h-1.5 w-full bg-white/60 dark:bg-slate-700 rounded-full overflow-hidden shadow-inner">
                     <motion.div initial={{ width: 0 }} whileInView={{ width: `${skill.proficiency}%` }} transition={{ duration: 1.5, ease: "easeOut" }} className="h-full bg-gradient-to-r from-orange-400 to-indigo-500" />
                   </div>
                 </motion.div>
@@ -436,7 +445,7 @@ const Home: React.FC = () => {
         <section id="events" className="py-6 md:py-10 scroll-mt-20">
           <div className="container mx-auto px-6">
             <div className="text-center mb-6">
-              <h2 className={`${headingClassName} italic`}>{sectionRecognitions}</h2>
+              <h2 className={`text-5xl md:text-7xl font-black tracking-tighter uppercase italic transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>{sectionRecognitions}</h2>
             </div>
             <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" initial="hidden" whileInView="visible" viewport={{ once: true }} variants={containerVariants}>
               {data.events?.map((event, i) => (
@@ -444,9 +453,9 @@ const Home: React.FC = () => {
                   <div className="w-16 h-16 bg-white dark:bg-slate-800 rounded-2xl shadow-lg flex items-center justify-center text-2xl text-orange-400 mb-4 group-hover:rotate-12 transition-transform">
                     <FaAward />
                   </div>
-                  <h3 className="font-black text-xl mb-2 leading-tight uppercase text-slate-900 dark:text-white">{event.name}</h3>
+                  <h3 className={`font-black text-xl mb-2 leading-tight uppercase transition-colors duration-300 ${isDark ? 'text-white' : 'text-slate-900'}`}>{event.name}</h3>
                   <p className="text-orange-400 text-[10px] font-black mb-2 tracking-widest uppercase">{event.role}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-200 italic line-clamp-3">{event.description}</p>
+                  <p className={`text-sm italic line-clamp-3 transition-colors duration-300 ${isDark ? 'text-slate-200' : 'text-slate-500'}`}>{event.description}</p>
                 </motion.div>
               ))}
             </motion.div>
@@ -463,10 +472,10 @@ const Home: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-8 md:mb-12">
             <div className="space-y-4">
               <h2 className="text-5xl md:text-7xl font-black tracking-[0.02em] leading-none uppercase text-slate-900 dark:text-white">
-                Let's <br /> connect.
+                {letsConnect} <br /> {letsConnect2}
               </h2>
               <div className="inline-block px-4 py-1 border-b-4 border-orange-400 text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">
-                AVAILABLE FOR NEW OPPORTUNITIES
+                {availableForNewOpportunities}
               </div>
             </div>
 

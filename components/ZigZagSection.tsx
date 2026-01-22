@@ -9,13 +9,15 @@ interface ZigZagSectionProps {
   visibleCount?: number;
   onShowMore?: () => void;
   hasMore?: boolean;
+  isDark?: boolean;
 }
 
 const ZigZagSection: React.FC<ZigZagSectionProps> = ({ 
   projects, 
   visibleCount = projects.length, 
   onShowMore, 
-  hasMore = false 
+  hasMore = false,
+  isDark = false
 }) => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -146,7 +148,7 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({
                   className="w-full md:w-1/2 space-y-3 cursor-pointer group px-2 md:px-4 pt-1 z-20"
                   onClick={() => handleProjectClick(project)}
                 >
-                  <h3 className="text-2xl md:text-3xl font-bold text-canva-text group-hover:text-canva-primary transition-colors relative inline-block">
+                  <h3 className={`text-2xl md:text-3xl font-bold group-hover:text-canva-primary transition-colors relative inline-block ${isDark ? 'text-white' : 'text-canva-text'}`}>
                     {project.title}
                     <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-canva-primary transition-all duration-300 group-hover:w-full"></span>
                   </h3>
@@ -157,7 +159,7 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({
                     </p>
                   )}
 
-                  <p className="text-canva-gray leading-relaxed text-sm md:text-base line-clamp-3">
+                  <p className={`leading-relaxed text-sm md:text-base line-clamp-3 transition-colors duration-300 ${isDark ? 'text-slate-200' : 'text-canva-gray'}`}>
                     {getShortDescription(project.description)}
                   </p>
 
@@ -165,19 +167,19 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({
                     {project.technologies.slice(0, 4).map((tech, i) => (
                       <span
                         key={i}
-                        className="px-2.5 py-1 text-xs font-semibold text-canva-text bg-white dark:bg-slate-800 border border-canva-secondary/50 rounded-full shadow-sm"
+                        className={`px-2.5 py-1 text-xs font-semibold bg-white dark:bg-slate-800 border border-canva-secondary/50 rounded-full shadow-sm transition-colors duration-300 ${isDark ? 'text-white' : 'text-canva-text'}`}
                       >
                         {tech}
                       </span>
                     ))}
                     {project.technologies.length > 4 && (
-                      <span className="px-2.5 py-1 text-xs font-semibold text-gray-400">
+                      <span className={`px-2.5 py-1 text-xs font-semibold transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-400'}`}>
                         +{project.technologies.length - 4}
                       </span>
                     )}
                   </div>
 
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 italic">
+                  <p className={`text-xs mt-2 italic transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-gray-400'}`}>
                     {getTranslation('projects.clickToViewDetails')}
                   </p>
                 </div>
@@ -192,7 +194,7 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({
               onClick={onShowMore}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-orange-200 dark:border-slate-700 rounded-full font-bold text-slate-800 dark:text-slate-200 hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all duration-300 shadow-lg flex items-center gap-3"
+              className={`px-8 py-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-orange-200 dark:border-slate-700 rounded-full font-bold hover:bg-orange-500 hover:text-white hover:border-orange-500 transition-all duration-300 shadow-lg flex items-center gap-3 ${isDark ? 'text-slate-200' : 'text-slate-800'}`}
             >
               <span>Xem thêm dự án</span>
               <motion.div
@@ -206,7 +208,7 @@ const ZigZagSection: React.FC<ZigZagSectionProps> = ({
         )}
 
         <div className="text-center mt-4">
-          <span className="text-xs font-mono text-slate-400 dark:text-slate-500">
+          <span className={`text-xs font-mono transition-colors duration-300 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
             Hiển thị {Math.min(visibleCount, projects.length)} / {projects.length} dự án
           </span>
         </div>
