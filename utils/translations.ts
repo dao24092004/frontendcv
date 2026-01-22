@@ -27,6 +27,18 @@ export const translations = {
       research: "Nghiên cứu",
       events: "Sự kiện",
     },
+    stats: {
+      coreTech: "Công nghệ cốt lõi",
+      experience: "Kinh nghiệm",
+      connect: "Kết nối",
+      socialNetwork: "Mạng xã hội",
+      yearsActive: "Năm hoạt động",
+    },
+    footer: {
+      letsConnect: "Hãy",
+      letsConnect2: "kết nối.",
+      availableForNewOpportunities: "SẴN SÀNG CHO CƠ HỘI MỚI",
+    },
   },
   en: {
     hero: {
@@ -51,6 +63,18 @@ export const translations = {
       skills: "Skills",
       research: "Research",
       events: "Events",
+    },
+    stats: {
+      coreTech: "Core Tech",
+      experience: "Experience",
+      connect: "Connect",
+      socialNetwork: "Social Network",
+      yearsActive: "Years Active",
+    },
+    footer: {
+      letsConnect: "Let's",
+      letsConnect2: "connect.",
+      availableForNewOpportunities: "AVAILABLE FOR NEW OPPORTUNITIES",
     },
   },
 };
