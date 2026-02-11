@@ -8,7 +8,7 @@ import ZigZagSection from '../components/ZigZagSection';
 import ChatWidget from '../components/ChatWidget';
 import MagneticWrapper from '../components/MagneticWrapper';
 import { motion, useScroll, useSpring, useTransform, Variants } from 'framer-motion';
-import { FaEnvelope, FaGithub, FaLinkedin, FaDownload, FaExternalLinkAlt, FaAward, FaBookOpen, FaBriefcase, FaGraduationCap, FaTerminal, FaCode, FaRocket, FaFingerprint } from 'react-icons/fa';
+import { FaEnvelope, FaGithub, FaLinkedin, FaDownload, FaExternalLinkAlt, FaAward, FaBookOpen, FaBriefcase, FaGraduationCap, FaTerminal, FaCode, FaRocket, FaFingerprint, FaPhone, FaCog, FaBrain, FaUsers, FaLaptop, FaMicrochip, FaDesktop, FaHeartbeat, FaRobot, FaDumbbell } from 'react-icons/fa';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { useReactToPrint } from 'react-to-print';
@@ -204,101 +204,218 @@ const Home: React.FC = () => {
 
       {/* ================= HERO SECTION ================= */}
       <section id="hero" className="relative min-h-screen flex items-center justify-center pt-20 pb-16 md:pb-24 overflow-hidden px-4 md:px-8">
-        <TechScene isDark={isDark} />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-soft-light"></div>
+        {/* Space Background - Dark with stars */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-blue-950/20 to-slate-950">
+          <TechScene isDark={true} />
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+          {/* Additional star effects */}
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(2px 2px at 20% 30%, white, transparent), radial-gradient(2px 2px at 60% 70%, white, transparent), radial-gradient(1px 1px at 50% 50%, white, transparent), radial-gradient(1px 1px at 80% 10%, white, transparent), radial-gradient(2px 2px at 90% 60%, white, transparent)',
+            backgroundSize: '200% 200%',
+            opacity: 0.4
+          }}></div>
+        </div>
 
         <motion.div
           style={{ y: yHero, opacity: opacityHero }}
-          className="container mx-auto relative z-10 max-w-7xl"
+          className="container mx-auto relative z-10 max-w-6xl"
           initial="hidden"
           animate="visible"
           variants={containerVariants}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* 1. HEADLINE CARD */}
-            <motion.div variants={itemVariants} className="lg:col-span-8 bg-white/60 dark:bg-white/5 backdrop-blur-2xl border border-white/20 dark:border-white/10 rounded-[3rem] p-8 md:p-12 shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/20 rounded-full blur-[80px] -z-10 group-hover:bg-orange-500/30 transition-colors duration-700" />
-              <div className="flex items-center gap-3 mb-6">
-                <span className="flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                <span className="font-mono text-xs text-orange-600 dark:text-orange-400 tracking-widest uppercase">{systemOnline}</span>
-              </div>
-
-              {/* --- HIỂN THỊ TIÊU ĐỀ ĐÃ TÁCH --- */}
-              <h1 className="text-5xl md:text-7xl xl:text-8xl font-black tracking-tighter leading-[0.9] mb-4 text-slate-900 dark:text-white uppercase">
-                {displayTitleLine1} <br />
-                {/* Chỉ hiển thị dòng 2 nếu có nội dung */}
-                {displayTitleLine2 && (
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-pink-600 animate-gradient-x">
-                    {displayTitleLine2}
-                  </span>
-                )}
-              </h1>
-              {/* ---------------------------------- */}
-
-              <p className="text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-2xl font-medium leading-relaxed mb-8">
-                "{data.bio}"
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <MagneticWrapper strength={30}>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handlePrint()}
-                    className="px-8 py-4 bg-slate-900 dark:bg-white text-white dark:text-black rounded-full font-bold tracking-wide shadow-lg flex items-center gap-2 transition-all hover:shadow-orange-500/20"
-                  >
-                    <FaDownload /> DOWNLOAD CV
-                  </motion.button>
-                </MagneticWrapper>
-                <div className="flex items-center gap-2 px-6 py-4 rounded-full border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-black/20 backdrop-blur-sm">
-                  <FaFingerprint className="text-orange-500" />
-                  <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{data.fullName}</span>
+          {/* MAIN PROFILE CARD - Layout như ảnh: Logo + Info bên trái, Ảnh bên phải */}
+          <motion.div 
+            variants={itemVariants} 
+            className="relative bg-slate-900/30 backdrop-blur-xl rounded-[2.5rem] p-0 overflow-hidden"
+            style={{
+              border: '2px solid rgba(6, 182, 212, 0.3)',
+              boxShadow: '0 0 60px rgba(6, 182, 212, 0.2), inset 0 0 60px rgba(6, 182, 212, 0.05)'
+            }}
+          >
+            {/* Top glow line */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-60"></div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-0">
+              {/* LEFT SECTION: Profile Image */}
+              <div className="lg:col-span-5 p-8 md:p-10 relative flex items-center">
+                {/* Blue glow effect behind image */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-transparent rounded-l-[2.5rem]"></div>
+                
+                <div className="relative w-full">
+                  <div className="relative rounded-2xl overflow-hidden">
+                    <motion.img
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.5 }}
+                      src={data.avatarUrl}
+                      alt={data.fullName}
+                      className="w-full aspect-[3/4] object-cover rounded-2xl"
+                      style={{
+                        filter: 'brightness(0.95) contrast(1.1)'
+                      }}
+                    />
+                    {/* Subtle overlay gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 via-transparent to-transparent"></div>
+                  </div>
+                  
+                  {/* Decorative corner lines */}
+                  <div className="absolute top-0 left-0 w-16 h-16 border-l-2 border-t-2 border-cyan-400/50 rounded-tl-2xl"></div>
+                  <div className="absolute bottom-0 left-0 w-16 h-16 border-l-2 border-b-2 border-cyan-400/50 rounded-bl-2xl"></div>
+                  <div className="absolute top-0 right-0 w-16 h-16 border-r-2 border-t-2 border-cyan-400/50 rounded-tr-2xl"></div>
+                  <div className="absolute bottom-0 right-0 w-16 h-16 border-r-2 border-b-2 border-cyan-400/50 rounded-br-2xl"></div>
                 </div>
               </div>
-            </motion.div>
 
-            {/* 2. PROFILE IMAGE CARD */}
-            <motion.div variants={itemVariants} className="lg:col-span-4 relative group h-[500px] lg:h-auto">
-              <div className="absolute inset-0 bg-gradient-to-br from-orange-400 to-purple-600 rounded-[3rem] rotate-2 group-hover:rotate-0 transition-transform duration-500 opacity-80 blur-sm"></div>
-              <div className="absolute inset-0 bg-slate-900 rounded-[3rem] overflow-hidden border-4 border-white/20 shadow-2xl">
-                <motion.img
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ duration: 0.7 }}
-                  src={data.avatarUrl}
-                  alt={data.fullName}
-                  className="w-full h-full object-cover opacity-90 hover:opacity-100"
-                />
-                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 to-transparent">
-                  <p className="font-mono text-xs text-orange-400 mb-1">/// ID_VERIFIED</p>
-                  <h3 className="text-2xl font-bold text-white uppercase">{data.jobTitle}</h3>
+              {/* Vertical divider line */}
+              <div className="absolute left-[41.67%] top-0 bottom-0 w-[1px] bg-gradient-to-b from-transparent via-cyan-500/30 to-transparent hidden lg:block"></div>
+
+              {/* RIGHT SECTION: Logo + Info */}
+              <div className="lg:col-span-7 p-8 md:p-10 space-y-8 text-white">
+                {/* Logo Atom + Name */}
+                <div className="flex items-center gap-6 pb-6 border-b border-cyan-500/20">
+                  {/* Atom Logo */}
+                  <div className="relative flex-shrink-0">
+                    <div className="relative w-32 h-32">
+                      {/* Center core with glow */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-6 h-6 bg-cyan-400 rounded-full shadow-[0_0_40px_rgba(6,182,212,1)]"></div>
+                      </div>
+                      {/* Orbit rings */}
+                      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                        {/* Orbit 1 */}
+                        <ellipse cx="50" cy="50" rx="45" ry="15" fill="none" stroke="rgba(6,182,212,0.5)" strokeWidth="2">
+                          <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="3s" repeatCount="indefinite"/>
+                        </ellipse>
+                        <circle cx="95" cy="50" r="4" fill="#06b6d4">
+                          <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="3s" repeatCount="indefinite"/>
+                        </circle>
+                        
+                        {/* Orbit 2 */}
+                        <ellipse cx="50" cy="50" rx="45" ry="15" fill="none" stroke="rgba(6,182,212,0.5)" strokeWidth="2" transform="rotate(60 50 50)">
+                          <animateTransform attributeName="transform" type="rotate" from="60 50 50" to="420 50 50" dur="2.5s" repeatCount="indefinite"/>
+                        </ellipse>
+                        <circle cx="95" cy="50" r="4" fill="#3b82f6" transform="rotate(60 50 50)">
+                          <animateTransform attributeName="transform" type="rotate" from="60 50 50" to="420 50 50" dur="2.5s" repeatCount="indefinite"/>
+                        </circle>
+                        
+                        {/* Orbit 3 */}
+                        <ellipse cx="50" cy="50" rx="45" ry="15" fill="none" stroke="rgba(6,182,212,0.5)" strokeWidth="2" transform="rotate(120 50 50)">
+                          <animateTransform attributeName="transform" type="rotate" from="120 50 50" to="480 50 50" dur="3.5s" repeatCount="indefinite"/>
+                        </ellipse>
+                        <circle cx="95" cy="50" r="4" fill="#8b5cf6" transform="rotate(120 50 50)">
+                          <animateTransform attributeName="transform" type="rotate" from="120 50 50" to="480 50 50" dur="3.5s" repeatCount="indefinite"/>
+                        </circle>
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* Name & Title */}
+                  <div className="flex-1">
+                    <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-2 text-white">
+                      {data.fullName}
+                    </h1>
+                    <p className="text-xl text-cyan-300 font-normal mb-1">{data.jobTitle}</p>
+                    <p className="text-sm text-slate-400 tracking-wide">
+                      PITECH LAB / INNOTECH SOLUTIONS
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
 
-            {/* 3. STATS CARDS */}
-            <div className="lg:col-span-12 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <motion.div variants={itemVariants} whileHover={{ y: -10 }} className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] flex items-center gap-4 shadow-sm transition-colors hover:border-orange-500/50">
-                <div className="p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl text-2xl"><FaCode /></div>
+                {/* Expertise Section */}
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{coreTech}</p>
-                  <div className="flex gap-2 mt-1">{data.skills.slice(0, 3).map((s, i) => (<span key={i} className="text-sm font-bold text-slate-800 dark:text-slate-200">{s.name}{i < 2 ? ',' : ''}</span>))}</div>
+                  <h3 className="text-2xl font-semibold text-white mb-5 tracking-wide">Expertise</h3>
+                  <div className="space-y-4">
+                    {data.skills.slice(0, 4).map((skill, i) => (
+                      <div key={i} className="flex items-center gap-4 text-slate-200">
+                        <FaCog className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                        <span className="text-base font-light">{skill.name}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </motion.div>
-              <motion.div variants={itemVariants} whileHover={{ y: -10 }} className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] flex items-center gap-4 shadow-sm transition-colors hover:border-purple-500/50">
-                <div className="p-4 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-2xl text-2xl"><FaRocket /></div>
-                <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{experience}</p><p className="text-lg font-black text-slate-800 dark:text-slate-200">{data.workHistory.length}+ {yearsActive}</p></div>
-              </motion.div>
-              <motion.div variants={itemVariants} whileHover={{ y: -10 }} className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] flex items-center justify-between shadow-sm transition-colors hover:border-green-500/50">
-                <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{connect}</p><p className="text-sm font-bold text-slate-800 dark:text-slate-200">{socialNetwork}</p></div>
-                <div className="flex gap-2">
-                  {data.contact.github && (<a href={data.contact.github} target="_blank" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-black hover:text-white transition-colors"><FaGithub /></a>)}
-                  {data.contact.linkedin && (<a href={data.contact.linkedin} target="_blank" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white transition-colors"><FaLinkedin /></a>)}
-                  <a href={`mailto:${data.contact.email}`} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-orange-500 hover:text-white transition-colors"><FaEnvelope /></a>
+
+                {/* Focus Areas Section */}
+                <div>
+                  <h3 className="text-2xl font-semibold text-white mb-5 tracking-wide">Focus Areas</h3>
+                  <div className="space-y-4">
+                    {data.workHistory.slice(0, 6).map((work, i) => (
+                      <div key={i} className="flex items-center gap-4 text-slate-200">
+                        <FaBriefcase className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                        <span className="text-base font-light">{work.role}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </motion.div>
+              </div>
             </div>
+
+            {/* Bottom Contact Bar */}
+            <div className="border-t border-cyan-500/20 px-8 md:px-10 py-5 flex flex-wrap items-center justify-center gap-8 bg-slate-900/20">
+              <div className="flex items-center gap-3 text-white">
+                <FaPhone className="w-5 h-5 text-cyan-400" />
+                <span className="text-base font-light">0904 140 022</span>
+              </div>
+              <div className="flex items-center gap-3 text-white">
+                <FaEnvelope className="w-5 h-5 text-cyan-400" />
+                <span className="text-base font-light">{data.contact.email}</span>
+              </div>
+            </div>
+
+            {/* Bottom glow line */}
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-60"></div>
+          </motion.div>
+
+          {/* Download CV Button */}
+          <div className="mt-8 flex justify-center">
+            <MagneticWrapper strength={30}>
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: "0 0 40px rgba(6,182,212,0.6)" }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handlePrint()}
+                className="px-10 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full font-semibold tracking-wide shadow-lg flex items-center gap-3 border border-cyan-400/50 hover:border-cyan-300"
+              >
+                <FaDownload className="text-lg" /> DOWNLOAD CV
+              </motion.button>
+            </MagneticWrapper>
+          </div>
+
+          {/* STATS CARDS - Simplified */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+            <motion.div 
+              variants={itemVariants} 
+              whileHover={{ y: -5, boxShadow: "0 0 30px rgba(6,182,212,0.3)" }} 
+              className="bg-slate-900/40 backdrop-blur-xl border border-cyan-500/30 p-6 rounded-2xl flex items-center gap-4"
+            >
+              <div className="p-4 bg-cyan-500/20 text-cyan-400 rounded-xl text-2xl"><FaCode /></div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{coreTech}</p>
+                <div className="flex gap-2 mt-1 text-white text-sm">{data.skills.slice(0, 2).map((s, i) => (<span key={i} className="font-light">{s.name}{i < 1 ? ',' : ''}</span>))}</div>
+              </div>
+            </motion.div>
+            <motion.div 
+              variants={itemVariants} 
+              whileHover={{ y: -5, boxShadow: "0 0 30px rgba(6,182,212,0.3)" }} 
+              className="bg-slate-900/40 backdrop-blur-xl border border-cyan-500/30 p-6 rounded-2xl flex items-center gap-4"
+            >
+              <div className="p-4 bg-purple-500/20 text-purple-400 rounded-xl text-2xl"><FaRocket /></div>
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{experience}</p>
+                <p className="text-lg font-bold text-white">{data.workHistory.length}+ {yearsActive}</p>
+              </div>
+            </motion.div>
+            <motion.div 
+              variants={itemVariants} 
+              whileHover={{ y: -5, boxShadow: "0 0 30px rgba(6,182,212,0.3)" }} 
+              className="bg-slate-900/40 backdrop-blur-xl border border-cyan-500/30 p-6 rounded-2xl flex items-center justify-between"
+            >
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{connect}</p>
+                <p className="text-sm font-light text-white">{socialNetwork}</p>
+              </div>
+              <div className="flex gap-2">
+                {data.contact.github && (<a href={data.contact.github} target="_blank" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 hover:bg-cyan-500 text-white transition-colors border border-cyan-500/30"><FaGithub /></a>)}
+                {data.contact.linkedin && (<a href={data.contact.linkedin} target="_blank" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-800/50 hover:bg-blue-600 text-white transition-colors border border-cyan-500/30"><FaLinkedin /></a>)}
+              </div>
+            </motion.div>
           </div>
         </motion.div>
       </section>
